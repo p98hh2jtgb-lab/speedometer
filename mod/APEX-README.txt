@@ -1,16 +1,18 @@
-APEX · Shpejtësimatësi 0.2.0 — version provues në shqip
+APEX · Shpejtësimatësi 0.2.1 — version provues në shqip
 Target: BeamNG.drive 0.39.4. Ndryshimet e reja ende kërkojnë test brenda lojës.
 
 PËRDITËSIMI
-- Hiqe / çaktivizoje apex-speedometer-0.1.0.zip para instalimit të këtij versioni.
-- Vendose apex-speedometer-0.2.0.zip pa e shpaketuar në mods të user folder-it aktiv.
-- Bëj restart të plotë të lojës që të ngarkohen edhe komandat e tastierës.
+- Hiqi / çaktivizoji ZIP-at e vjetër APEX 0.1.0 dhe 0.2.0. Mbaje vetëm këtë version aktiv.
+- Vendose apex-speedometer-0.2.1.zip pa e shpaketuar në mods të user folder-it aktiv.
+- Bëj restart të plotë të lojës që të mos mbetet UI-ja e vjetër në memorie.
 - Te UI Apps kërko APEX · Shpejtësimatësi. Lëre app-in full screen.
 
 KONTROLLET
-Ctrl+H hap / mbyll cilësimet edhe kur je duke vozitur (komandë native e lojës).
+Kliko butonin e vogël ⚙ sipër djathtas për t’i hapur cilësimet.
+Kliko X në panel për t’i mbyllur. Butoni punon edhe kur numri është i fshehur.
+Ctrl+H, komanda Lua dhe binding-u i tij u hoqën nga ky version.
 Nuk ka më buton APEX në fund të ekranit.
-Nëse Ctrl+H ka konflikt, te Settings -> Controls kërko APEX dhe cakto Ctrl+H.
+Nëse ke caktuar manualisht një binding të vjetër në Controls, hiqe edhe atë.
 Right-click mbi numrin mbetet si mënyrë alternative.
 Pozicioni -> çaktivizo Blloko pozicionin për ta zhvendosur me panelin hapur.
 

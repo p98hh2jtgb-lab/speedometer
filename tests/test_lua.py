@@ -55,18 +55,11 @@ class ExtensionTests(unittest.TestCase):
         self.module.onExtensionUnloaded()
         self.assertFalse(self.lua.globals().events[3]['data']['available'])
 
-    def test_hotkey_triggers_ui_event(self):
-        self.module.toggleSettings()
-        self.assertEqual(self.lua.globals().events[1]['name'], 'apexSpeedometer.toggleSettings')
-
-    def test_native_binding_is_ctrl_h(self):
-        import json
+    def test_keyboard_shortcut_is_completely_removed(self):
         root = SOURCE.parents[3]
-        bindings = json.loads((root / 'settings/inputmaps/keyboardAPEXSpeedometer.json').read_text())
-        self.assertEqual(bindings['bindings'][0]['control'], 'ctrl+h')
-        actions = json.loads((SOURCE.parent / 'core/input/actions/apexSpeedometer.json').read_text())
-        self.assertEqual(actions['apex_speedometer_toggle_settings']['ctx'], 'elua')
-        self.assertIn('toggleSettings()', actions['apex_speedometer_toggle_settings']['onDown'])
+        self.assertFalse((root / 'settings/inputmaps/keyboardAPEXSpeedometer.json').exists())
+        self.assertFalse((SOURCE.parent / 'core/input/actions/apexSpeedometer.json').exists())
+        self.assertIsNone(self.module.toggleSettings)
 
     def test_xyz_velocity_api_and_player_id_lookup(self):
         self.lua.execute("""

@@ -65,10 +65,6 @@ local function onUpdate(dtReal)
   })
 end
 
-local function toggleSettings()
-  guihooks.trigger('apexSpeedometer.toggleSettings')
-end
-
 local function onVehicleResetted(id)
   local vehicle = playerVehicle()
   if vehicle and vehicle:getID() == id then
@@ -80,7 +76,6 @@ local function onExtensionUnloaded()
   guihooks.trigger('apexSpeedometer.ground', {available = false})
 end
 
-M.toggleSettings = toggleSettings
 M.onUpdate = onUpdate
 M.onVehicleResetted = onVehicleResetted
 M.onExtensionUnloaded = onExtensionUnloaded

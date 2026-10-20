@@ -20,17 +20,25 @@ const {execFileSync} = require('node:child_process');
  async function set(key,value,event='input'){
   await page.locator('[data-key="'+key+'"]').first().evaluate((el,{value,event})=>{el.value=String(value);el.dispatchEvent(new Event(event,{bubbles:true}));},{value,event});
  }
- async function toggle(){await page.waitForTimeout(200);await page.keyboard.press('Control+h');}
+ async function toggle(){if(await page.locator('.as-panel').isVisible()) await page.locator('.as-close').click(); else await page.locator('.as-settings-button').click();}
  async function inBounds(){const box=await page.locator('.as-hud').boundingBox();const size=page.viewportSize();assert.ok(box.x>=10 && box.y>=10 && box.x+box.width<=size.width-10 && box.y+box.height<=size.height-10,JSON.stringify({box,size}));}
  async function feed(payload){await page.evaluate(p=>{clearInterval(window.feed);window.liveApp.updateElectrics(p);window.feed=setInterval(()=>window.liveApp.updateElectrics(p),40);},payload);}
  try {
  await page.goto('http://127.0.0.1:8080/');
- await check('Albanian UI, no bottom APEX button, Ctrl+H opens and closes',async()=>{
+ await check('Albanian UI, top-right gear opens settings and X closes them',async()=>{
   await page.waitForFunction(()=>document.querySelector('.as-number').textContent==='147');
   assert.equal(await page.locator('.as-launch').count(),0);
+  assert.equal(await page.locator('.as-settings-button').count(),1);
+  const gear=await page.locator('.as-settings-button').boundingBox();
+  assert.ok(gear.x>page.viewportSize().width-65 && gear.y<30,JSON.stringify(gear));
   assert.equal(await page.locator('[data-tab=style]').textContent(),'Pamja');
   await toggle();assert.equal(await page.locator('.as-panel').isVisible(),false);
   await toggle();assert.equal(await page.locator('.as-panel').isVisible(),true);
+  assert.equal(await page.locator('.as-settings-button').getAttribute('aria-expanded'),'true');
+  await page.locator('.as-settings-button svg').click();
+  assert.equal(await page.locator('.as-panel').isVisible(),true); // gear opens, it doesn't toggle closed
+  await page.evaluate(()=>document.dispatchEvent(new KeyboardEvent('keydown',{ctrlKey:true,code:'KeyH',bubbles:true,cancelable:true})));
+  assert.equal(await page.locator('.as-panel').isVisible(),true);
  });
  await check('four distinct styles switch live',async()=>{
   for(const style of ['clean','race','digital','outline']){await page.locator('[data-style="'+style+'"]').click();assert.ok(await page.locator('.as-hud').evaluate((el,s)=>el.classList.contains('as-style-'+s),style));}
@@ -117,7 +125,7 @@ const {execFileSync} = require('node:child_process');
  await check('small viewport and huge HUD remain on screen',async()=>{
   await page.setViewportSize({width:390,height:740});await set('size',220);await page.locator('.as-close').click();await inBounds();await toggle();assert.ok(await page.locator('.as-panel').isVisible());await page.setViewportSize({width:1440,height:900});
  });
- await check('hide at stop and disabled HUD can still reopen with Ctrl+H',async()=>{
+ await check('hide at stop and disabled HUD can still reopen with gear',async()=>{
   await tab('behavior');await page.locator('[data-key=hideStopped]').check();await page.locator('[data-demo]').evaluate(el=>{el.value='0';el.dispatchEvent(new Event('input',{bubbles:true}));});
   await page.locator('.as-close').click();await page.waitForFunction(()=>document.querySelector('.as-hud').classList.contains('as-stopped'));
   await toggle();await page.waitForFunction(()=>!document.querySelector('.as-hud').classList.contains('as-stopped'));
@@ -159,7 +167,7 @@ const {execFileSync} = require('node:child_process');
   await page.waitForFunction(()=>document.querySelector('.as-number').textContent==='72');assert.match(await page.locator('.as-meta').textContent(),/REZERVË: GOMAT/);
   await page.evaluate(()=>clearInterval(window.feed));
  });
- await check('Angular native hotkey event toggles, deduplicates, cleans up all handlers',async()=>{
+ await check('Angular adapter has no hotkey hook and gear works; cleanup releases telemetry',async()=>{
   const source=fs.readFileSync('mod/ui/modules/apps/ApexSpeedometer/app.js','utf8');
   await page.evaluate(source=>{
    window.liveApp.destroy();const handlers={}, calls=[];
@@ -167,17 +175,22 @@ const {execFileSync} = require('node:child_process');
    window.StreamsManager={add:x=>calls.push(['add',x]),remove:x=>calls.push(['remove',x])};window.bngApi={engineLua:x=>calls.push(['lua',x])};
    (0,eval)(source);
    const scope={$on:(name,fn)=>{handlers[name]=fn;return ()=>{delete handlers[name];};}};
-   const stale=document.createElement('link');stale.id='apex-speedometer-css';stale.rel='stylesheet';stale.href='/ui/modules/apps/ApexSpeedometer/app.css?v=0.1.0';document.head.appendChild(stale);
+   const stale=document.createElement('link');stale.id='apex-speedometer-css';stale.rel='stylesheet';stale.href='/ui/modules/apps/ApexSpeedometer/app.css?v=0.2.0';document.head.appendChild(stale);
    window.adapter.link(scope,[document.querySelector('.apex-speedometer')]);
-   if(!stale.href.endsWith('?v=0.2.0'))throw Error('old stylesheet was not upgraded');
-   if(!handlers.streamsUpdate||!handlers['apexSpeedometer.ground']||!handlers['apexSpeedometer.toggleSettings'])throw Error('missing handlers');
-   handlers['apexSpeedometer.toggleSettings']();
-   if(document.querySelector('.as-panel').hidden)throw Error('native shortcut did not open panel');
-   document.dispatchEvent(new KeyboardEvent('keydown',{ctrlKey:true,code:'KeyH',bubbles:true,cancelable:true}));
-   if(document.querySelector('.as-panel').hidden)throw Error('same key press double toggled panel');
+   if(!stale.href.endsWith('?v=0.2.1'))throw Error('old stylesheet was not upgraded');
+   if(!handlers.streamsUpdate||!handlers['apexSpeedometer.ground'])throw Error('missing telemetry handlers');
+   if(handlers['apexSpeedometer.toggleSettings'])throw Error('hotkey hook still registered');
+   const event=new KeyboardEvent('keydown',{ctrlKey:true,code:'KeyH',bubbles:true,cancelable:true});
+   document.dispatchEvent(event);
+   if(event.defaultPrevented||!document.querySelector('.as-panel').hidden)throw Error('Ctrl+H still handled');
+   document.querySelector('.as-settings-button').click();
+   if(document.querySelector('.as-panel').hidden)throw Error('gear did not open settings');
+   document.querySelector('.as-close').click();
+   if(!document.querySelector('.as-panel').hidden)throw Error('X did not close settings');
    handlers.streamsUpdate(null,{electrics:{wheelspeed:0,airspeed:50,rpm:2000,gear:'2'}});
    handlers['$destroy']();
    if(Object.keys(handlers).some(k=>k!=='$destroy'))throw Error('leaked handlers');
+   if(document.querySelector('.as-settings-button'))throw Error('gear leaked after app removal');
    if(!calls.some(x=>x[0]==='remove'))throw Error('stream not released');
    if(!calls.some(x=>x[0]==='lua' && x[1].includes("extensions.load('apexSpeedometer')")))throw Error('extension not loaded');
    if(!calls.some(x=>x[0]==='lua' && x[1].includes("extensions.unload('apexSpeedometer')")))throw Error('extension not unloaded');

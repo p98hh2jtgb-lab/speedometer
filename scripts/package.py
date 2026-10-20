@@ -23,8 +23,7 @@ def build():
         assert archive.testzip() is None
         assert 'ui/modules/apps/ApexSpeedometer/app.json' in archive.namelist()
         assert 'lua/ge/extensions/apexSpeedometer.lua' in archive.namelist()
-        assert 'lua/ge/extensions/core/input/actions/apexSpeedometer.json' in archive.namelist()
-        assert 'settings/inputmaps/keyboardAPEXSpeedometer.json' in archive.namelist()
+        assert not any('inputmaps/' in name or 'core/input/actions/' in name for name in archive.namelist())
         assert 'ui/modules/apps/ApexSpeedometer/fonts/OFL.txt' in archive.namelist()
     print(f'{OUTPUT.relative_to(ROOT)} ({OUTPUT.stat().st_size:,} bytes)')
 

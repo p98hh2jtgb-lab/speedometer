@@ -89,15 +89,17 @@
     var custom = read(KEY + '.presets', {});
     if (!custom || typeof custom !== 'object' || Array.isArray(custom)) custom = {};
     var data = {wheel: null, air: null, ground: null, wheelAt: -Infinity, airAt: -Infinity, groundAt: -Infinity, rpm: 0, gear: 'N', telemetryAt: -Infinity};
-    var displayed = 0, peakMs = 0, previous = performance.now(), demoMs = 147 / 3.6, lastToggleAt = -Infinity;
+    var displayed = 0, peakMs = 0, previous = performance.now(), demoMs = 147 / 3.6;
     root.innerHTML = '<div class="as-hud" role="group" aria-label="Shpejtësimatësi" tabindex="0">' +
       '<div class="as-rpm" aria-hidden="true"><i></i></div><div class="as-reading"><span class="as-gear"></span>' +
       '<span class="as-number">—</span><span class="as-unit">KM/H</span></div>' +
-      '<div class="as-meta"></div><div class="as-edit-hint">ZHVENDOSE NË EKRAN · CTRL+H PËR CILËSIMET</div></div>' +
-      '<section class="as-panel" aria-label="Cilësimet e shpejtësisë" hidden>' +
+      '<div class="as-meta"></div><div class="as-edit-hint">ZHVENDOSE NË EKRAN · ⚙ PËR CILËSIMET</div></div>' +
+      '<button class="as-settings-button" type="button" title="Hap cilësimet" aria-label="Hap cilësimet" aria-expanded="false">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 3h5l.5 2.5 2 1.2 2.5-.8 2.5 4.3-2 1.8v2l2 1.8-2.5 4.3-2.5-.8-2 1.2-.5 2.5h-5L9 20.5l-2-1.2-2.5.8L2 15.8 4 14v-2l-2-1.8L4.5 6 7 6.8l2-1.2z" transform="translate(0 -1) scale(1 .95)"/><circle cx="12" cy="11.5" r="3"/></svg></button>' +
+      '<section id="apex-settings-panel" class="as-panel" aria-label="Cilësimet e shpejtësisë" hidden>' +
       '<header class="as-header"><div class="as-brandmark">A</div><div><h1>APEX <span>SHPEJTËSIMATËSI</span></h1>' +
-      '<p>Shpejtësia jote. Stili yt.</p></div><kbd class="as-shortcut">Ctrl + H</kbd><button class="as-close" title="Mbyll cilësimet" aria-label="Mbyll cilësimet">×</button></header>' +
-      '<div class="as-status"><span></span>' + (options.demo ? 'PARAPAMJE E SIMULUAR · JO TË DHËNA NGA LOJA' : 'BEAMNG HUD · 0.2.0 / VERSION PROVUES') + '</div>' +
+      '<p>Shpejtësia jote. Stili yt.</p></div><button class="as-close" title="Mbyll cilësimet" aria-label="Mbyll cilësimet">×</button></header>' +
+      '<div class="as-status"><span></span>' + (options.demo ? 'PARAPAMJE E SIMULUAR · JO TË DHËNA NGA LOJA' : 'BEAMNG HUD · 0.2.1 / VERSION PROVUES') + '</div>' +
       '<div class="as-source-status" aria-live="polite"></div><nav class="as-nav" aria-label="Kategoritë e cilësimeve"></nav><div class="as-content"></div>' +
       '<footer class="as-footer"><span class="as-save-state">U ruajt në këtë pajisje</span><button class="as-done">Mbyll ↗</button></footer></section>';
     var hud = root.querySelector('.as-hud'), panel = root.querySelector('.as-panel');
@@ -112,12 +114,11 @@
       catch (_) { notify('Ruajtja nuk punon · ndryshimet janë të përkohshme'); }
     }
     function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 150); }
-    function visible(open) { panel.hidden = !open; if (open) render(); else { dragging = null; hud.classList.remove('as-dragging'); apply(); } }
-    function toggleSettings() {
-      var now = performance.now();
-      // The native binding and focused CEF may deliver the same press. Toggle once.
-      if (now - lastToggleAt < 180) return;
-      lastToggleAt = now; visible(panel.hidden);
+    function visible(open) {
+      panel.hidden = !open;
+      root.querySelector('.as-settings-button').setAttribute('aria-expanded', String(open));
+      if (open) render();
+      else { dragging = null; hud.classList.remove('as-dragging'); apply(); }
     }
     function paint(speed) {
       var value = speedColor(speed, settings);
@@ -292,6 +293,7 @@
     });
     on(root, 'click', function (e) {
       var target = e.target.closest('button'); if (!target) return;
+      if (target.matches('.as-settings-button')) { visible(true); return; }
       if (target.matches('.as-close, .as-done')) { visible(false); apply(); return; }
       if (target.dataset.paint) {
         settings.color = target.dataset.paint; settings.adaptiveColor = false; save(); render(); return;
@@ -339,10 +341,7 @@
     on(hud, 'keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); visible(true); } });
     on(document, 'keydown', function (e) {
       if (e.key === 'Escape' && !panel.hidden) { visible(false); apply(); }
-      if (e.ctrlKey && !e.altKey && !e.shiftKey && e.code === 'KeyH') {
-        e.preventDefault();
-        if (!e.repeat) toggleSettings();
-      }
+
     });
     on(hud, 'pointerdown', function (e) {
       if (settings.locked || panel.hidden || e.button !== 0) return;
@@ -421,7 +420,7 @@
     }
     visible(!!options.demo); apply(); frame = requestAnimationFrame(tick);
     return {
-      updateElectrics: updateElectrics, updateGround: updateGround, toggleSettings: toggleSettings,
+      updateElectrics: updateElectrics, updateGround: updateGround,
       destroy: function () {
         destroyed = true; cancelAnimationFrame(frame); clearTimeout(saveTimer); save();
         cleanups.forEach(function (fn) { fn(); }); if (observer) observer.disconnect(); root.innerHTML = '';
@@ -439,18 +438,17 @@
             document.head.appendChild(css);
           }
           // Reusing the UI layout must not keep a previous build's stylesheet alive.
-          if (css.getAttribute('href') !== '/ui/modules/apps/ApexSpeedometer/app.css?v=0.2.0') {
-            css.href = '/ui/modules/apps/ApexSpeedometer/app.css?v=0.2.0';
+          if (css.getAttribute('href') !== '/ui/modules/apps/ApexSpeedometer/app.css?v=0.2.1') {
+            css.href = '/ui/modules/apps/ApexSpeedometer/app.css?v=0.2.1';
           }
           var app = API.mount(element[0]);
           StreamsManager.add(['electrics']);
           var offStreams = scope.$on('streamsUpdate', function (_, streams) { if (streams) app.updateElectrics(streams.electrics); });
           var offGround = scope.$on('apexSpeedometer.ground', function (_, payload) { app.updateGround(payload); });
-          var offToggle = scope.$on('apexSpeedometer.toggleSettings', function () { app.toggleSettings(); });
           activeInstances += 1;
           if (activeInstances === 1) bngApi.engineLua("extensions.load('apexSpeedometer')");
           scope.$on('$destroy', function () {
-            offStreams(); offGround(); offToggle(); StreamsManager.remove(['electrics']); app.destroy();
+            offStreams(); offGround(); StreamsManager.remove(['electrics']); app.destroy();
             activeInstances -= 1;
             if (activeInstances === 0) bngApi.engineLua("extensions.unload('apexSpeedometer')");
           });

@@ -1,17 +1,18 @@
 # APEX · Shpejtësimatësi
 
-**v0.2.0 · shqip · target BeamNG.drive 0.39.4**
+**v0.2.1 · shqip · target BeamNG.drive 0.39.4**
 
 Speed HUD numerik mbi lojë — jo komplet instrument tabelë. Pa survival, damage, boost apo ndryshime të fizikës.
 
-## ⬇️ [Shkarko APEX Speedometer 0.2.0 ZIP](https://github.com/p98hh2jtgb-lab/speedometer/raw/refs/heads/arena/c4a2d9cd-speedometer/downloads/apex-speedometer-0.2.0.zip)
+## ⬇️ [Shkarko APEX Speedometer 0.2.1 ZIP](https://github.com/p98hh2jtgb-lab/speedometer/raw/refs/heads/arena/c4a2d9cd-speedometer/downloads/apex-speedometer-0.2.1.zip)
 
-**Hiqe / çaktivizoje ZIP-in 0.1.0 para instalimit. Mos i mbaj të dy versionet aktive.** Shkarko vetëm ZIP-in e modit, jo gjithë repon me “Download ZIP”. Arkivi i vjetër në `downloads/` është historik.
+**Hiqi / çaktivizoji ZIP-at e vjetër 0.1.0 dhe 0.2.0 para instalimit. Mbaje vetëm versionin e ri aktiv.** Shkarko vetëm ZIP-in e modit, jo gjithë repon me “Download ZIP”. Arkivi i vjetër në `downloads/` është historik.
 
-## Çka u ndryshua në 0.2.0
+## Çka u ndryshua në 0.2.1
 
 - Paneli, shpjegimet, njoftimet dhe emrat e stileve janë **shqip**.
-- U hoq butoni APEX poshtë ekranit. **Ctrl+H** hap/mbyll panelin përmes një komande native të lojës; ka edhe mbështetje kur UI-ja e merr tastin. Eventet e dyfishta të së njëjtës shtypje filtrohen.
+- **Butoni ⚙ sipër djathtas** hap cilësimet me klikim; **X** në panel i mbyll. Butoni mbetet i arritshëm edhe kur HUD-i është fshehur. Nuk ka buton APEX poshtë ekranit.
+- **Ctrl+H u hoq plotësisht**: pa listener në UI, pa komandë Lua dhe pa action/inputmap tastiere në ZIP-in e ri.
 - **Dinamik** është standard. Lexohen direkt `electrics.airspeed` / `airSpeed`, jo vetëm gomat. GE Lua mbetet rrugë e pavarur me matje të shpejtësisë nga komponentët XYZ, pa varësi nga metoda `vec3:length()`.
 - **Air** është burim i rreptë i lëvizjes reale; **Gomat** mbetet opsion eksplicit. Në Dinamik, rezerva te gomat shënohet qartë kur të dhënat reale mungojnë.
 - Ngjyrat aplikohen direkt te numri/njësia, edhe për `change` events të zgjedhësit të ngjyrës. Ka **paletë dhe fusha HEX**, pa varësi nga hapja e zgjedhësit native të ngjyrës në CEF.
@@ -21,15 +22,15 @@ Speed HUD numerik mbi lojë — jo komplet instrument tabelë. Pa survival, dama
 
 ## Instalimi / përditësimi
 
-1. Hiqe ose çaktivizoje `apex-speedometer-0.1.0.zip` te Mod Manager / dosja `mods`.
-2. Shkarko **`apex-speedometer-0.2.0.zip`** nga linku lart.
+1. Hiqi ose çaktivizoji **të gjithë ZIP-at e vjetër APEX** (0.1.0 dhe 0.2.0) te Mod Manager / dosja `mods`.
+2. Shkarko **`apex-speedometer-0.2.1.zip`** nga linku lart.
 3. Te BeamNG Launcher: **Manage User Folder → Open in Explorer**. Vendose ZIP-in në `mods` të user folder-it aktiv, **pa e shpaketuar**.
-4. Bëj **restart të plotë të lojës**, përfshirë ngarkimin e komandës së re të tastierës.
+4. Bëj **restart të plotë të lojës** që të mos mbeten UI-ja ose komanda e vjetër në memorie.
 5. Në Free Roam me veturë: **UI Apps → Edit Apps → Add App → APEX · Shpejtësimatësi**. Nëse e ke app-in ekzistues, mund të mbetet në layout; nëse s’përditësohet, hiqe dhe shtoje përsëri.
 6. Lëre UI app-in **full screen**, pastaj dil nga editimi i UI Apps.
-7. Shtyp **Ctrl+H** për panelin. Për zhvendosje: **Pozicioni → çaktivizo “Blloko pozicionin”**, pastaj tërhiqe numrin me maus me panelin hapur.
+7. Kliko **⚙ sipër djathtas** për panelin; mbylle me **X**. Për zhvendosje: **Pozicioni → çaktivizo “Blloko pozicionin”**, pastaj tërhiqe numrin me maus me panelin hapur.
 
-Nëse Ctrl+H nuk punon ose ka konflikt me një komandë tjetër, te **Settings → Controls** kërko **APEX: Hap / mbyll cilësimet** dhe cakto `Ctrl+H`. Right-click mbi numrin mbetet alternativë, edhe pa buton në ekran.
+Butoni ⚙ mbetet sipër djathtas pavarësisht pozicionit, transparencës ose fshehjes së numrit. Nuk kërkon fokus të tastierës. Right-click mbi numrin mbetet alternativë. Nëse ke caktuar manualisht komandën e vjetër në një inputmap personal të lojës, hiqe edhe atë binding nga Controls; versioni i ri nuk e përfshin më.
 
 ## Burimi i shpejtësisë
 
@@ -75,16 +76,16 @@ Nuk duhen paketa npm për parapamjen; serveri përdor Python standard. Te **Vozi
 npm ci
 npm test                              # logjika numerike, burimet, migrimi, ngjyrat
 npm run preview                       # lëre ndezur në terminal tjetër
-npm run test:browser                   # UI + adapter / Ctrl+H; Chromium Linux x64
+npm run test:browser                   # UI + adapter / butoni ⚙ dhe X; Chromium Linux x64
 python -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python tests/test_lua.py      # Lua me API të simuluara
 npm run package                       # ZIP determinist për instalim
 ```
 
-Testet përfshijnë **300 km/h me goma në 0 pa Lua bridge**, wheelspin, lëvizje reale zero, Air me të dhëna që mungojnë, shenjimin e rezervës, ngjyrën reale të renderuar, `change`-only color events, madhësitë/hapësirat, migrimin nga v0.1, komandën native Ctrl+H dhe pastrimin e eventeve.
+Testet përfshijnë **300 km/h me goma në 0 pa Lua bridge**, wheelspin, lëvizje reale zero, Air me të dhëna që mungojnë, shenjimin e rezervës, ngjyrën reale të renderuar, `change`-only color events, madhësitë/hapësirat, migrimin nga v0.1, butonin ⚙ sipër djathtas, mbylljen me X, mungesën e komandës Ctrl+H dhe pastrimin e eventeve.
 
-**User-i konfirmoi që v0.1 shfaqej në lojë. Ndryshimet e v0.2 ende kërkojnë test në BeamNG 0.39.4.** Testet e browser-it dhe API-të e simuluara nuk vërtetojnë kompatibilitetin e plotë në lojë. Mbeten për provë: frenimi me goma të bllokuara, fluturimi, pause/slow-motion/replay, Controls binding, kalimi i input-it te loja, UI scaling dhe automjete të modifikuara.
+**HUD-i është shfaqur në lojën e përdoruesit. Ndryshimet e v0.2.1 ende kërkojnë test në BeamNG 0.39.4.** Testet e browser-it dhe API-të e simuluara nuk vërtetojnë kompatibilitetin e plotë në lojë. Mbeten për provë: frenimi me goma të bllokuara, fluturimi, pause/slow-motion/replay, klikimi i butonit në UI-në e lojës, kalimi i input-it te loja, UI scaling dhe automjete të modifikuara.
 
 ## Struktura / licencat
 

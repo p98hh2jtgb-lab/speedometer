@@ -1,8 +1,8 @@
 {
   "name": "APEX · Shpejtësimatësi",
-  "description": "Shpejtësimatës në shqip, me ngjyra dhe stile. Ctrl+H hap / mbyll cilësimet.",
+  "description": "Shpejtësimatës në shqip, me ngjyra dhe stile. Butoni ⚙ sipër djathtas hap cilësimet; X i mbyll.",
   "author": "speedometer project",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "directive": "apexSpeedometer",
   "domElement": "<apex-speedometer></apex-speedometer>",
   "css": {
