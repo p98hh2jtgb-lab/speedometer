@@ -1,0 +1,4 @@
+# Only for thumbnail generation and mocked Lua checks; not needed by the mod.
+Pillow==13.0.0
+luaparser==4.2.0
+lupa==2.8

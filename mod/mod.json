@@ -1,0 +1,6 @@
+{
+  "name": "APEX Speedometer",
+  "version": "0.1.0",
+  "description": "Customizable numeric speed HUD. Target: BeamNG.drive 0.39.4; in-game validation pending.",
+  "author": "speedometer project"
+}

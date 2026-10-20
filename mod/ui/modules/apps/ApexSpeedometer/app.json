@@ -1,0 +1,12 @@
+{
+  "name": "APEX Speedometer",
+  "description": "Premium numeric speed HUD with styles, colors, layout editor and presets. Right-click the HUD for settings.",
+  "author": "speedometer project",
+  "version": "0.1.0",
+  "directive": "apexSpeedometer",
+  "domElement": "<apex-speedometer></apex-speedometer>",
+  "css": { "left": "0px", "top": "0px", "width": "100%", "height": "100%" },
+  "category": "Gameplay",
+  "isAuxiliary": false,
+  "interactive": "required"
+}
