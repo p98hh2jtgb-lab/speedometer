@@ -92,6 +92,7 @@ const {execFileSync} = require('node:child_process');
    await page.locator('[data-style="'+style+'"]').click();await page.evaluate(()=>document.fonts.ready);
    signatures.push(await page.locator('.as-number').evaluate(el=>{const s=getComputedStyle(el);return [s.fontFamily,s.fontSize,s.fontStyle,s.fontWeight,s.textShadow,s.webkitTextStrokeWidth,getComputedStyle(el.closest('.as-hud')).backgroundImage].join('|');}));
    assert.ok(await page.locator('.as-hud').evaluate((el,s)=>el.classList.contains('as-style-'+s),style));
+   assert.equal(await color(),'rgb(153, 255, 0)','style must preserve adaptive mode');
   }
   assert.equal(new Set(signatures).size,7);
  });
@@ -131,21 +132,22 @@ const {execFileSync} = require('node:child_process');
   assert.equal(await page.locator('.as-gear,.as-rpm,[data-key=unitColor],[data-key=unitFollowsColor]').count(),0);
   await tab('behavior');assert.equal(await page.locator('[data-key=showGear],[data-key=showRpm],[data-key=rpmMax]').count(),0);
  });
- await check('default fixed white stays white from 0 to 300, including low speed',async()=>{
-  await tab('style');await page.locator('[data-style=clean]').click();await tab('behavior');await set('smoothing',0);
+ await check('fixed color remains optional and stays white at all speeds',async()=>{
+  await tab('style');await page.locator('[data-style=clean]').click();await tab('color');await choose('adaptiveColor',false);await tab('behavior');await set('smoothing',0);
   for(const speed of [0,5,20,40,60,80,100,180,300]){await demo(speed);await waitNumber(speed);assert.equal(await color(),'rgb(255, 255, 255)');assert.equal(await color('.as-unit'),await color());}
  });
- await check('optional warm color is explicit, restrained and shared',async()=>{
+ await check('requested green/red gradient renders correctly on number and unit',async()=>{
   await tab('color');await choose('adaptiveColor',true);
   assert.equal(await page.locator('[data-set=palette],[data-stop]').count(),0);
   await tab('behavior');
-  for(const [speed,rgb] of [[0,'255, 255, 255'],[5,'255, 255, 255'],[40,'255, 255, 255'],[60,'255, 255, 255'],[100,'255, 209, 102'],[140,'255, 69, 58'],[300,'255, 69, 58']]){
+  for(const [speed,rgb] of [[0,'255, 255, 255'],[5,'128, 255, 128'],[10,'0, 255, 0'],[30,'0, 255, 0'],[50,'0, 255, 0'],[60,'102, 255, 0'],[75,'255, 255, 0'],[90,'255, 102, 0'],[99,'255, 10, 0'],[100,'255, 0, 0'],[140,'255, 0, 0'],[300,'255, 0, 0'],[100,'255, 0, 0'],[75,'255, 255, 0'],[50,'0, 255, 0'],[10,'0, 255, 0'],[5,'128, 255, 128'],[0,'255, 255, 255']]){
    await demo(speed);await waitNumber(speed);assert.equal(await color(),'rgb('+rgb+')');assert.equal(await color('.as-unit'),await color());
   }
  });
- await check('unit conversion preserves physical warm threshold',async()=>{
+ await check('unit conversion preserves physical green and red thresholds',async()=>{
   await demo(100);await waitNumber(100);const old=await color();await choose('units','mph');await waitNumber(62);assert.equal(await color(),old);assert.equal(await color('.as-unit'),old);
   await choose('units','kmh');await waitNumber(100);await tab('behavior');
+  await demo(10);await waitNumber(10);await choose('units','mph');await waitNumber(6);assert.equal(await color(),'rgb(0, 255, 0)');await choose('units','kmh');await demo(100);await waitNumber(100);
  });
  await check('decimals convert using real button clicks',async()=>{
   await tab('behavior');await choose('units','mph');await choose('decimals',2);await waitNumber('62.14');await choose('decimals',1);await waitNumber('62.1');await choose('units','kmh');await waitNumber('100.0');await choose('decimals',0);
@@ -186,21 +188,21 @@ const {execFileSync} = require('node:child_process');
   await tab('behavior');await page.locator('[data-key=hideStopped]').check();await demo(0);await close();await page.waitForFunction(()=>document.querySelector('.as-hud').classList.contains('as-stopped'));await open();
   await page.locator('[data-key=enabled]').uncheck();await close();assert.equal(await page.locator('.as-hud').isVisible(),false);await open();assert.equal(await page.locator('.as-hud').isVisible(),true);
  });
- await check('v0.2 and v0.3 migration remove old heavy/pink/separate unit preferences',async()=>{
+ await check('migration enables new colors from v0.2/v0.3/v0.3.1 without moving HUD',async()=>{
   await page.evaluate(()=>window.previewApp.destroy());
-  for(const revision of [2,3]){
+  for(const revision of [2,3,4]){
    await page.evaluate(revision=>{
     if(window.liveApp)window.liveApp.destroy();
     localStorage.setItem('apex.speedometer.v1.revision',String(revision));
-    localStorage.setItem('apex.speedometer.v1',JSON.stringify({size:164,unitSize:40,numberWeight:900,italic:true,style:'race',source:'dynamic',units:'kmh',color:'#ff42c8',adaptiveColor:true,palette:'spectrum',unitPosition:'below',unitFollowsColor:false,unitColor:'#ff42c8',showGear:true,showRpm:true,x:28,y:77,panelX:100,panelY:50}));
+    localStorage.setItem('apex.speedometer.v1',JSON.stringify({size:revision===4?74:164,unitSize:40,numberWeight:revision===4?400:900,italic:revision!==4,style:revision===4?'minimal':'race',source:'dynamic',units:'kmh',color:'#ff42c8',adaptiveColor:false,palette:'spectrum',unitPosition:'below',unitFollowsColor:false,unitColor:'#ff42c8',showGear:true,showRpm:true,x:28,y:77,panelX:100,panelY:50}));
     window.liveApp=ApexSpeedometer.mount(document.querySelector('.apex-speedometer'));
    },revision);await open();
-   assert.equal(await page.locator('[data-key=size]').inputValue(),'88');assert.equal(await page.locator('[data-key=numberWeight]').inputValue(),'600');
+   assert.equal(await page.locator('[data-key=size]').inputValue(),revision===4?'74':'88');assert.equal(await page.locator('[data-key=numberWeight]').inputValue(),revision===4?'400':'600');
    assert.equal(await color(),'rgb(255, 255, 255)');assert.equal(await color('.as-unit'),await color());
    assert.equal(await page.locator('.as-gear,.as-rpm').count(),0);
    const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('apex.speedometer.v1')));
-   assert.equal(saved.style,'clean');assert.equal(saved.adaptiveColor,false);assert.equal(saved.x,28);assert.equal(saved.y,77);assert.equal(saved.panelX,100);assert.equal(saved.panelY,50);assert.equal(saved.unitPosition,undefined);assert.equal(saved.showGear,undefined);
-   assert.equal(await page.evaluate(()=>localStorage.getItem('apex.speedometer.v1.revision')),'4');
+   assert.equal(saved.style,revision===4?'minimal':'clean');assert.equal(saved.adaptiveColor,true);assert.equal(saved.x,28);assert.equal(saved.y,77);assert.equal(saved.panelX,100);assert.equal(saved.panelY,50);assert.equal(saved.unitPosition,undefined);assert.equal(saved.showGear,undefined);
+   assert.equal(await page.evaluate(()=>localStorage.getItem('apex.speedometer.v1.revision')),'5');
   }
   await tab('color');await page.locator('[data-color-key=color][data-paint="#4169ff"]').click();await page.waitForTimeout(220);
   await page.evaluate(()=>{window.liveApp.destroy();window.liveApp=ApexSpeedometer.mount(document.querySelector('.apex-speedometer'));});await open();assert.equal(await color(),'rgb(65, 105, 255)');
@@ -230,7 +232,7 @@ const {execFileSync} = require('node:child_process');
    window.StreamsManager={add:x=>calls.push(['add',x]),remove:x=>calls.push(['remove',x])};window.bngApi={engineLua:x=>calls.push(['lua',x])};(0,eval)(source);
    const scope={$on:(name,fn)=>{handlers[name]=fn;return()=>{delete handlers[name];};}};
    const css=document.createElement('link');css.id='apex-speedometer-css';css.rel='stylesheet';css.href='/ui/modules/apps/ApexSpeedometer/app.css?v=0.2.1';document.head.appendChild(css);
-   window.adapter.link(scope,[document.querySelector('.apex-speedometer')]);if(!css.href.endsWith('?v=0.3.1'))throw Error('stale CSS');
+   window.adapter.link(scope,[document.querySelector('.apex-speedometer')]);if(!css.href.endsWith('?v=0.3.2'))throw Error('stale CSS');
    if(!handlers.streamsUpdate||!handlers['apexSpeedometer.ground']||handlers['apexSpeedometer.toggleSettings'])throw Error('wrong subscriptions');
    document.querySelector('.as-settings-button').click();if(document.querySelector('.as-panel').hidden)throw Error('gear failed');document.querySelector('.as-close').click();if(!document.querySelector('.as-panel').hidden)throw Error('X failed');
    handlers['$destroy']();if(Object.keys(handlers).some(k=>k!=='$destroy'))throw Error('listener leaked');if(document.querySelector('.as-settings-button'))throw Error('DOM leaked');if(!calls.some(x=>x[0]==='remove'))throw Error('stream leaked');delete window.angular;

@@ -44,12 +44,12 @@ test('smoothing is frame-rate independent and instant mode works', () => {
 });
 test('adaptive color exact endpoints and clamping', () => {
   const s=hud.sanitize({adaptiveColor:true});
-  assert.equal(hud.speedColor(0,s),'#ffffff');assert.equal(hud.speedColor(60,s),'#ffffff');
-  assert.equal(hud.speedColor(100,s),'#ffd166');assert.equal(hud.speedColor(140,s),'#ff453a');assert.equal(hud.speedColor(900,s),'#ff453a');
+  assert.equal(hud.speedColor(0,s),'#ffffff');assert.equal(hud.speedColor(10,s),'#00ff00');assert.equal(hud.speedColor(50,s),'#00ff00');
+  assert.equal(hud.speedColor(75,s),'#ffff00');assert.equal(hud.speedColor(100,s),'#ff0000');assert.equal(hud.speedColor(900,s),'#ff0000');assert.equal(hud.speedColor(-10,s),'#ffffff');
 });
 test('all built-in looks contain valid settings', () => {
   for (const preset of Object.values(hud.presets)) {
-    assert.equal(preset.adaptiveColor,false);
+    assert.equal(preset.adaptiveColor,undefined);
     const s = hud.sanitize({...hud.defaults,...preset});
     for (const [key,value] of Object.entries(preset)) assert.equal(s[key],value);
   }
@@ -83,19 +83,21 @@ test('compact spacing validated; independent unit spacing removed', () => {
 });
 
 
-test('clean semibold and static white are the defaults at all speeds', () => {
-  assert.equal(hud.defaults.adaptiveColor,false);assert.equal(hud.defaults.numberWeight,600);assert.equal(hud.defaults.italic,false);
-  for(let i=0;i<=500;i++) assert.equal(hud.speedColor(i,hud.defaults),'#ffffff');
-  assert.equal(hud.speedColor(300,hud.sanitize({color:'#87d8ff'})),'#87d8ff');
+test('clean semibold and requested adaptive mode are defaults; fixed color remains available', () => {
+  assert.equal(hud.defaults.adaptiveColor,true);assert.equal(hud.defaults.numberWeight,600);assert.equal(hud.defaults.italic,false);
+  for(let i=0;i<=500;i++) assert.equal(hud.speedColor(i,{...hud.defaults,adaptiveColor:false}),'#ffffff');
+  assert.equal(hud.speedColor(300,hud.sanitize({color:'#87d8ff',adaptiveColor:false})),'#87d8ff');
 });
-test('optional warm transitions are continuous and never pink', () => {
+test('green to red transitions are continuous, bright and never pink', () => {
  const s=hud.sanitize({adaptiveColor:true});
  const rgb=color=>[1,3,5].map(i=>parseInt(color.slice(i,i+2),16));
- for(const stop of [60,100,140]){
+ for(const stop of [0,10,50,75,100]){
   const a=rgb(hud.speedColor(stop-.001,s)),b=rgb(hud.speedColor(stop+.001,s));a.forEach((v,i)=>assert.ok(Math.abs(v-b[i])<=1));
  }
  for(let speed=0;speed<=140;speed++){
-  const [r,g,b]=rgb(hud.speedColor(speed,s));assert.equal(r,255);assert.ok(g>=b,'only white/amber/red, no pink');
+  const [r,g,b]=rgb(hud.speedColor(speed,s));
+  if(speed<=50){assert.equal(g,255);assert.equal(r,b);}
+  else {assert.equal(b,0);assert.equal(Math.max(r,g),255,'keep the ramp bright');}
  }
 });
 test('format speed supports decimals without negative or invalid numbers', () => {
@@ -123,4 +125,17 @@ test('removed transmission, unit and rainbow settings cannot be revived by old p
  const result=hud.sanitize(obsolete);
  for(const key of Object.keys(obsolete))assert.equal(Object.hasOwn(result,key),false,key);
  assert.deepEqual(result,hud.defaults);
+});
+
+test('ramps progress gradually in both requested intervals and hold green in between',()=>{
+ const rgb=color=>[1,3,5].map(i=>parseInt(color.slice(i,i+2),16));
+ let previous=rgb(hud.speedColor(0,hud.defaults));
+ for(let i=1;i<=1000;i++){
+  const current=rgb(hud.speedColor(i/10,hud.defaults));
+  current.forEach((v,j)=>assert.ok(Math.abs(v-previous[j])<=3));previous=current;
+ }
+ assert.equal(hud.speedColor(5,hud.defaults),'#80ff80');
+ for(let speed=10;speed<=50;speed+=.5)assert.equal(hud.speedColor(speed,hud.defaults),'#00ff00');
+ assert.notEqual(hud.speedColor(99,hud.defaults),'#ff0000');
+ for(const speed of [100,101,300,9999])assert.equal(hud.speedColor(speed,hud.defaults),'#ff0000');
 });

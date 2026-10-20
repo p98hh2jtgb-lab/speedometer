@@ -6,7 +6,7 @@
     enabled: true, style: 'clean', size: 88, digitSpacing: -1, numberWeight: 600,
     x: 50, y: 82, units: 'kmh', source: 'dynamic', decimals: 0,
     color: '#ffffff', outlineColor: '#11131b', outline: 0, shadow: 55,
-    opacity: 100, background: false, italic: false, adaptiveColor: false,
+    opacity: 100, background: false, italic: false, adaptiveColor: true,
     smoothing: 100, glow: 0, reactiveScale: 0, hideStopped: false, showPeak: false,
     warning: false, warningSpeed: 130, locked: true,
     panelX: 0, panelY: 0, panelWidth: 340, panelHeight: 560, panelCollapsed: false
@@ -21,19 +21,19 @@
   // Every look keeps the number and unit in one inline, shared-color instrument.
   var LOOKS = {
     clean: {style:'clean', size:88, numberWeight:600, italic:false, outline:0, glow:0,
-      background:false, adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
+      background:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
     outline: {style:'outline', size:88, numberWeight:600, italic:true, outline:2, glow:0,
-      background:false, adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
+      background:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
     race: {style:'race', size:88, numberWeight:700, italic:true, outline:1, glow:0,
-      background:false, adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
+      background:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
     neon: {style:'neon', size:86, numberWeight:600, italic:false, outline:0, glow:14,
-      background:false, adaptiveColor:false, color:'#87d8ff', reactiveScale:0, digitSpacing:-1},
+      background:false, color:'#87d8ff', reactiveScale:0, digitSpacing:-1},
     hyper: {style:'hyper', size:90, numberWeight:700, italic:true, outline:0, glow:0,
-      background:true, adaptiveColor:false, color:'#ffffff', reactiveScale:6, digitSpacing:-1},
+      background:true, color:'#ffffff', reactiveScale:6, digitSpacing:-1},
     minimal: {style:'minimal', size:64, numberWeight:400, italic:false, outline:0, glow:0,
-      background:false, adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:0},
+      background:false, color:'#ffffff', reactiveScale:0, digitSpacing:0},
     digital: {style:'digital', size:78, numberWeight:600, italic:false, outline:0, glow:0,
-      background:true, adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:0}
+      background:true, color:'#ffffff', reactiveScale:0, digitSpacing:0}
   };
   function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
   function finite(n) { return typeof n === 'number' && Number.isFinite(n); }
@@ -80,10 +80,12 @@
   }
   function speedColor(speedKmh, s) {
     if (!s.adaptiveColor) return s.color;
-    // Optional restrained warm ramp, never a rainbow. Fixed white is the default.
-    if (speedKmh <= 60) return '#ffffff';
-    if (speedKmh <= 100) return mix('#ffffff','#ffd166',(speedKmh-60)/40);
-    return mix('#ffd166','#ff453a',(speedKmh-100)/40);
+    // Physical km/h: white -> green in 0..10, green through 50, full red at 100.
+    // Pass through bright yellow instead of muddy brown; never cyan/purple/pink.
+    if (speedKmh <= 10) return mix('#ffffff','#00ff00',speedKmh/10);
+    if (speedKmh <= 50) return '#00ff00';
+    if (speedKmh <= 75) return mix('#00ff00','#ffff00',(speedKmh-50)/25);
+    return mix('#ffff00','#ff0000',(speedKmh-75)/25);
   }
   function formatSpeed(speed, decimals) { return Math.max(0,finite(speed) ? speed : 0).toFixed(Math.round(clamp(finite(decimals) ? decimals : 0,0,2))); }
   function panelCorner(width, height, pw, ph, rect) {
@@ -113,9 +115,14 @@
       if (revision < 2) settings.source = 'dynamic';
       settings.style = 'clean'; settings.numberWeight = 600; settings.italic = false;
       settings.size = Math.min(settings.size,88); settings.digitSpacing = -1;
-      settings.color = '#ffffff'; settings.adaptiveColor = false;
+      settings.color = '#ffffff';
       settings.outline = 0; settings.background = false; settings.glow = 0; settings.reactiveScale = 0;
-      try { storage.setItem(KEY + '.revision','4'); storage.setItem(KEY,JSON.stringify(settings)); } catch (_) {}
+    }
+    if (revision < 5) {
+      // Enable the requested ramp once, including existing v0.3.1 installations.
+      // Preserve typography, layout, units and speed source from revision 4.
+      settings.adaptiveColor = true;
+      try { storage.setItem(KEY + '.revision','5'); storage.setItem(KEY,JSON.stringify(settings)); } catch (_) {}
     }
     var custom = read(KEY + '.presets', {});
     if (!custom || typeof custom !== 'object' || Array.isArray(custom)) custom = {};
@@ -130,7 +137,7 @@
       '<section id="apex-settings-panel" class="as-panel" aria-label="Cilësimet e shpejtësisë" hidden>' +
       '<header class="as-header" tabindex="0" title="Tërhiqe panelin me maus" aria-label="Zhvendos panelin e cilësimeve"><div class="as-brandmark">A</div><div><h1>APEX <span>SHPEJTËSIMATËSI</span></h1>' +
       '<p>↔ Tërhiqe panelin ku të duash</p></div><button class="as-collapse" type="button" title="Mblidh / zgjero panelin" aria-label="Mblidh / zgjero panelin">−</button><button class="as-close" title="Mbyll cilësimet" aria-label="Mbyll cilësimet">×</button></header>' +
-      '<div class="as-status"><span></span>' + (options.demo ? 'PARAPAMJE E SIMULUAR · JO TË DHËNA NGA LOJA' : 'BEAMNG HUD · 0.3.1 / VERSION PROVUES') + '</div>' +
+      '<div class="as-status"><span></span>' + (options.demo ? 'PARAPAMJE E SIMULUAR · JO TË DHËNA NGA LOJA' : 'BEAMNG HUD · 0.3.2 / VERSION PROVUES') + '</div>' +
       '<div class="as-source-status" aria-live="polite"></div><nav class="as-nav" aria-label="Kategoritë e cilësimeve"></nav><div class="as-content"></div>' +
       '<footer class="as-footer"><button type="button" data-action="panel-away" class="as-away" title="Largo panelin nga numri">↔ Largo</button><span class="as-save-state">U ruajt në këtë pajisje</span><button class="as-done">Mbyll ↗</button></footer></section>';
     root.querySelectorAll('button').forEach(function (button) { button.type = 'button'; });
@@ -254,10 +261,10 @@
         html += range('opacity','Dukshmëria e HUD-it',15,100,'%') + toggle('background','Sfond i errët');
         html += '<button class="as-secondary" data-action="reset-layout">Rikthe madhësinë dhe pozicionin e numrit</button>';
       } else if (pane === 'color') {
-        html = heading('NGJYRAT','Pa ylber. Pa pink automatik.','Standardi është i bardhë në çdo shpejtësi. Numri dhe njësia marrin gjithmonë të njëjtën ngjyrë.');
+        html = heading('NGJYRAT','E gjelbër → e kuqe.','Numri dhe njësia marrin gjithmonë të njëjtën ngjyrë. Pa pink ose ylber.');
         html += color('color','Ngjyra e speedometrit të plotë');
-        html += select('adaptiveColor','Sjellja e ngjyrës',[[false,'Fikse (standard)'],[true,'Kalimi i lehtë']]);
-        html += '<p class="as-note">Opsioni i lehtë: bardhë deri 60 km/h → amber në 100 → e kuqe në 140+. Pa cyan, blu, vjollcë ose pink automatik. Pragjet mbeten në km/h edhe kur shfaq mph.</p>';
+        html += select('adaptiveColor','Sjellja e ngjyrës',[[false,'Fikse'],[true,'Sipas shpejtësisë (standard)']]);
+        html += '<p class="as-note">0–10 km/h: gradualisht bardhë → gjelbër. 10–50: gjelbër. 50–100: gradualisht gjelbër → kuqe, përmes të verdhës. Në 100 e sipër: krejt e kuqe. Pragjet mbeten në km/h edhe kur shfaq mph.</p>';
         html += color('outlineColor','Ngjyra e konturit') + range('outline','Trashësia e konturit',0,5,' px');
       } else if (pane === 'behavior') {
         html = select('source','Burimi',[['dynamic','Dinamik'],['air','Air'],['wheel','Gomat']]);
@@ -535,8 +542,8 @@
             document.head.appendChild(css);
           }
           // Reusing the UI layout must not keep a previous build's stylesheet alive.
-          if (css.getAttribute('href') !== '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.1') {
-            css.href = '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.1';
+          if (css.getAttribute('href') !== '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.2') {
+            css.href = '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.2';
           }
           var app = API.mount(element[0]);
           StreamsManager.add(['electrics']);
