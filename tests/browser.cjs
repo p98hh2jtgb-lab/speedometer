@@ -116,7 +116,7 @@ const {execFileSync} = require('node:child_process');
   await label.locator('b').click();assert.equal(await page.locator('[data-key=italic]').isChecked(),false);
  });
  await check('native color pickers not required: swatch click changes rendered color',async()=>{
-  await tab('color');await page.addStyleTag({content:'.as-number,.as-unit{color:white!important;-webkit-text-fill-color:white!important}'});
+  await tab('color');await page.addStyleTag({content:'.as-number,.as-unit,.as-sprint-card,.as-sprint-label,.as-sprint-time{color:white!important;-webkit-text-fill-color:white!important}'});
   await page.locator('[data-color-key=color][data-paint="#87d8ff"]').click();
   assert.equal(await color(),'rgb(135, 216, 255)');assert.equal(await color('.as-unit'),'rgb(135, 216, 255)');
   assert.equal(await page.locator('[data-set=adaptiveColor][data-value=false]').getAttribute('aria-pressed'),'true');
@@ -224,13 +224,133 @@ const {execFileSync} = require('node:child_process');
  await check('dynamic fallback to wheels is visibly labelled',async()=>{
   await choose('source','dynamic');await feed({wheelspeed:20});await waitNumber(72);assert.match(await page.locator('.as-meta').textContent(),/REZERVË: GOMAT/);await page.evaluate(()=>clearInterval(window.feed));
  });
+ await check('0-100 is OFF by default: no tracker, calculations, seconds or preview',async()=>{
+  await page.evaluate(()=>{
+   clearInterval(window.feed);window.liveApp.destroy();
+   const settings=JSON.parse(localStorage.getItem('apex.speedometer.v1'));settings.sprintEnabled=false;settings.enabled=true;settings.smoothing=0;settings.units='kmh';settings.style='clean';settings.size=88;settings.numberWeight=600;settings.x=50;settings.y=70;
+   localStorage.setItem('apex.speedometer.v1',JSON.stringify(settings));
+   window.originalSprint=ApexSpeedometer.createSprint;window.sprintCounts={created:0,sampled:0};
+   ApexSpeedometer.createSprint=()=>{window.sprintCounts.created++;const timer=window.originalSprint(),sample=timer.sample;timer.sample=(...args)=>{window.sprintCounts.sampled++;return sample(...args);};return timer;};
+   window.liveApp=ApexSpeedometer.mount(document.querySelector('.apex-speedometer'));
+   window.sendGround=points=>{
+    clearInterval(window.keepGround);
+    for(const p of points){window.lastGround={available:true,speed:p[1]/3.6,simTime:p[0]};window.liveApp.updateGround(window.lastGround);}
+    window.keepGround=setInterval(()=>window.liveApp.updateGround(window.lastGround),40);
+   };
+   window.runPoints=base=>{const points=[];for(let i=0;i<=10;i++)points.push([base+i*.05,0]);for(let i=1;i<=44;i++)points.push([base+.5+i*.05,i*100/44]);return points;};
+   window.sendGround(window.runPoints(0));
+  });await open();await tab('sprint');
+  assert.equal(await page.locator('[data-key=sprintEnabled]').isChecked(),false);
+  assert.equal(await page.locator('.as-sprint').isVisible(),false);assert.equal(await page.locator('.as-sprint-time').textContent(),'');
+  assert.deepEqual(await page.evaluate(()=>window.sprintCounts),{created:0,sampled:0});
+  assert.equal(await page.locator('[data-action=sprint-preview]').isDisabled(),true);
+ });
+ await check('ON still hides all seconds until 100, then displays 2.20 s without moving number',async()=>{
+  await page.locator('[data-key=sprintEnabled]').check();
+  assert.equal(await page.locator('.as-sprint').isVisible(),false);
+  await page.evaluate(()=>window.sendGround(window.runPoints(4).slice(0,-4)));
+  assert.equal(await page.locator('.as-sprint').isVisible(),false);assert.equal(await page.locator('.as-sprint-time').textContent(),'');
+  const before=await page.locator('.as-reading').boundingBox();
+  await page.evaluate(()=>window.sendGround(window.runPoints(4).slice(-4)));
+  await page.waitForSelector('.as-sprint:visible');
+  assert.equal(await page.locator('.as-sprint-time').textContent(),'2.20 s');assert.equal(await page.locator('.as-sprint-label').textContent(),'0–100 km/h');
+  const after=await page.locator('.as-reading').boundingBox(),result=await page.locator('.as-sprint').boundingBox();
+  assert.ok(Math.abs(before.y-after.y)<1);assert.ok(result.y>=after.y+after.height);
+  assert.equal(await page.locator('.as-number').evaluate(el=>getComputedStyle(el).fontWeight),'600');
+  assert.equal(await page.locator('.as-unit').evaluate(el=>getComputedStyle(el).color),await color());
+  assert.ok((await page.evaluate(()=>window.sprintCounts.sampled))>0);
+  await page.waitForTimeout(380);await page.screenshot({path:'preview/sprint.png'});
+ });
+ await check('OFF cancels an unfinished run; enabling while moving cannot resume it',async()=>{
+  await page.evaluate(()=>window.sendGround(window.runPoints(8).slice(0,-4)));
+  assert.equal(await page.locator('.as-sprint').isVisible(),false);
+  await page.locator('[data-key=sprintEnabled]').uncheck();const count=await page.evaluate(()=>window.sprintCounts.sampled);
+  await page.evaluate(()=>window.sendGround(window.runPoints(8).slice(-4)));
+  assert.equal(await page.evaluate(()=>window.sprintCounts.sampled),count);
+  await page.locator('[data-key=sprintEnabled]').check();
+  await page.evaluate(()=>window.sendGround([[11,90],[11.05,100]]));assert.equal(await page.locator('.as-sprint').isVisible(),false);
+  await page.evaluate(()=>window.sendGround(window.runPoints(12)));assert.equal(await page.locator('.as-sprint-time').textContent(),'2.20 s');
+ });
+ await check('result customization changes actual size, placement, color, label and decorations',async()=>{
+  await set('sprintSize',22);await set('sprintGap',10);await set('sprintOffset',8);await set('sprintOpacity',80);
+  await choose('sprintAlign','right');await choose('sprintDecimals',1);await page.locator('[data-key=sprintLabel]').uncheck();
+  await page.locator('[data-color-key=sprintColor][data-paint="#4169ff"]').click();
+  assert.equal(await page.locator('[data-key=sprintFollowColor]').isChecked(),false);
+  await page.locator('[data-key=sprintBackground]').check();await page.locator('[data-key=sprintBorder]').check();await page.locator('[data-key=sprintAnimate]').uncheck();
+  await page.locator('[data-action=sprint-preview]').click();
+  assert.equal(await page.locator('.as-sprint-time').textContent(),'2.2 s');
+  assert.equal(await page.locator('.as-sprint-label').textContent(),'PROVË');
+  assert.equal(await page.locator('.as-sprint-card').evaluate(el=>getComputedStyle(el).fontSize),'22px');
+  assert.equal(await page.locator('.as-sprint-card').evaluate(el=>getComputedStyle(el).color),'rgb(65, 105, 255)');
+  assert.equal(await page.locator('.as-sprint').evaluate(el=>getComputedStyle(el).opacity),'0.8');
+  assert.equal(await page.locator('.as-sprint').getAttribute('data-align'),'right');
+  assert.ok(await page.locator('.as-sprint').evaluate(el=>el.classList.contains('as-sprint-backed')&&el.classList.contains('as-sprint-bordered')));
+  assert.equal(await page.locator('.as-sprint-card').evaluate(el=>getComputedStyle(el).animationName),'none');
+ });
+ await check('Fade, Slide and Pop animate in and out, then remove the result',async()=>{
+  await set('sprintDuration',1);await set('sprintAnimationMs',200);await page.locator('[data-key=sprintAnimate]').check();
+  for(const mode of ['fade','slide','pop']){
+   await choose('sprintAnimation',mode);await page.locator('[data-action=sprint-preview]').click();
+   assert.equal(await page.locator('.as-sprint').getAttribute('data-phase'),'in');
+   assert.equal(await page.locator('.as-sprint-card').evaluate(el=>getComputedStyle(el).animationName),'as-sprint-'+mode+'-in');
+   await page.waitForFunction(()=>document.querySelector('.as-sprint').dataset.phase==='out');
+   assert.equal(await page.locator('.as-sprint-card').evaluate(el=>getComputedStyle(el).animationName),'as-sprint-'+mode+'-out');
+   await page.waitForFunction(()=>document.querySelector('.as-sprint').hidden);assert.equal(await page.locator('.as-sprint-time').textContent(),'');
+  }
+ });
+ await check('animation OFF and reduced motion both remove all motion',async()=>{
+  await page.locator('[data-key=sprintAnimate]').uncheck();await page.locator('[data-action=sprint-preview]').click();
+  assert.equal(await page.locator('.as-sprint').getAttribute('data-animation'),'none');
+  await page.waitForFunction(()=>document.querySelector('.as-sprint').hidden);
+  await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-key=sprintAnimate]').check();await page.locator('[data-action=sprint-preview]').click();
+  assert.equal(await page.locator('.as-sprint-card').evaluate(el=>getComputedStyle(el).animationName),'none');
+  await page.waitForFunction(()=>document.querySelector('.as-sprint').hidden);await page.emulateMedia({reducedMotion:'no-preference'});
+ });
+ await check('meter OFF immediately removes result, stops calculations and persists custom controls',async()=>{
+  await page.locator('[data-action=sprint-preview]').click();assert.equal(await page.locator('.as-sprint').isVisible(),true);
+  await page.locator('[data-key=sprintEnabled]').uncheck();assert.equal(await page.locator('.as-sprint').isVisible(),false);
+  const before=await page.evaluate(()=>window.sprintCounts.sampled);await page.evaluate(()=>window.sendGround(window.runPoints(8)));
+  assert.equal(await page.evaluate(()=>window.sprintCounts.sampled),before);assert.equal(await page.locator('.as-sprint-time').textContent(),'');
+  assert.match(await page.locator('.as-sprint-state').textContent(),/^OFF/);await page.waitForTimeout(220);
+  await page.evaluate(()=>{window.liveApp.destroy();window.liveApp=ApexSpeedometer.mount(document.querySelector('.apex-speedometer'));});await open();await tab('sprint');
+  assert.equal(await page.locator('[data-key=sprintEnabled]').isChecked(),false);assert.equal(await page.locator('[data-key=sprintSize]').inputValue(),'22');assert.equal(await page.locator('[data-key=sprintDuration]').inputValue(),'1');
+  assert.equal(await page.locator('[data-key=sprintBorder]').isChecked(),true);assert.equal(await page.locator('.as-sprint').isVisible(),false);
+ });
+ await check('wheelspin, missing Lua and missing sim clock never produce fake acceleration times',async()=>{
+  await page.locator('[data-key=sprintEnabled]').check();
+  await page.evaluate(()=>{
+   clearInterval(window.keepGround);window.liveApp.updateGround({available:false,reset:true});
+   for(let i=0;i<100;i++)window.liveApp.updateElectrics({wheelspeed:i*2,airspeed:i});
+   for(const p of window.runPoints(12))window.liveApp.updateGround({available:true,speed:p[1]/3.6});
+  });await page.waitForTimeout(100);
+  assert.equal(await page.locator('.as-sprint').isVisible(),false);assert.equal(await page.locator('.as-sprint-time').textContent(),'');
+  assert.match(await page.locator('.as-sprint-state').textContent(),/LUA/);
+ });
+ await check('raw simulation motion times correctly despite mph, smoothing and locked wheels; reset clears',async()=>{
+  await tab('behavior');await choose('units','mph');await set('smoothing',500);await tab('sprint');
+  await page.locator('[data-key=sprintLabel]').check();await choose('sprintDecimals',2);await page.locator('[data-key=sprintAnimate]').uncheck();
+  await page.evaluate(()=>{window.liveApp.updateElectrics({wheelspeed:0});window.sendGround(window.runPoints(16));});
+  assert.equal(await page.locator('.as-sprint-time').textContent(),'2.20 s');assert.equal(await page.locator('.as-sprint-label').textContent(),'0–100 km/h');
+  assert.equal(await page.locator('.as-unit').textContent(),'mph');
+  await page.evaluate(()=>{clearInterval(window.keepGround);window.liveApp.updateGround({available:true,speed:0,simTime:0,reset:true});});
+  assert.equal(await page.locator('.as-sprint').isVisible(),false);
+ });
+ await check('large customized result and main HUD both remain inside a small viewport',async()=>{
+  await set('sprintSize',40);await set('sprintGap',48);await set('sprintOffset',120);await choose('sprintAlign','center');
+  await tab('layout');await set('x',97);await set('y',95);await tab('sprint');
+  await page.setViewportSize({width:390,height:740});await page.locator('[data-action=sprint-preview]').click();
+  await bounds();await bounds('.as-sprint');
+  await page.locator('[data-key=sprintEnabled]').uncheck();await page.setViewportSize({width:1440,height:900});
+  assert.equal(await page.evaluate(()=>window.submissions),0);
+  await page.evaluate(()=>{clearInterval(window.keepGround);ApexSpeedometer.createSprint=window.originalSprint;});
+ });
  await check('Angular adapter upgrades old CSS, no shortcut, cleans up',async()=>{
   const source=fs.readFileSync('mod/ui/modules/apps/ApexSpeedometer/app.js','utf8');await page.evaluate(source=>{
    window.liveApp.destroy();const handlers={},calls=[];window.angular={module:()=>({directive:(name,factory)=>{window.adapter=factory();}})};
    window.StreamsManager={add:x=>calls.push(['add',x]),remove:x=>calls.push(['remove',x])};window.bngApi={engineLua:x=>calls.push(['lua',x])};(0,eval)(source);
    const scope={$on:(name,fn)=>{handlers[name]=fn;return()=>{delete handlers[name];};}};
    const css=document.createElement('link');css.id='apex-speedometer-css';css.rel='stylesheet';css.href='/ui/modules/apps/ApexSpeedometer/app.css?v=0.2.1';document.head.appendChild(css);
-   window.adapter.link(scope,[document.querySelector('.apex-speedometer')]);if(!css.href.endsWith('?v=0.3.1'))throw Error('stale CSS');
+   window.adapter.link(scope,[document.querySelector('.apex-speedometer')]);if(!css.href.endsWith('?v=0.3.3'))throw Error('stale CSS');
    if(!handlers.streamsUpdate||!handlers['apexSpeedometer.ground']||handlers['apexSpeedometer.toggleSettings'])throw Error('wrong subscriptions');
    document.querySelector('.as-settings-button').click();if(document.querySelector('.as-panel').hidden)throw Error('gear failed');document.querySelector('.as-close').click();if(!document.querySelector('.as-panel').hidden)throw Error('X failed');
    handlers['$destroy']();if(Object.keys(handlers).some(k=>k!=='$destroy'))throw Error('listener leaked');if(document.querySelector('.as-settings-button'))throw Error('DOM leaked');if(!calls.some(x=>x[0]==='remove'))throw Error('stream leaked');delete window.angular;

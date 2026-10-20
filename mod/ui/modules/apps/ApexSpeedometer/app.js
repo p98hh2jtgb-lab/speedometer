@@ -9,14 +9,22 @@
     opacity: 100, background: false, italic: false, adaptiveColor: false,
     smoothing: 100, glow: 0, reactiveScale: 0, hideStopped: false, showPeak: false,
     warning: false, warningSpeed: 130, locked: true,
-    panelX: 0, panelY: 0, panelWidth: 340, panelHeight: 560, panelCollapsed: false
+    panelX: 0, panelY: 0, panelWidth: 340, panelHeight: 560, panelCollapsed: false,
+    sprintEnabled: false, sprintDuration: 4, sprintSize: 18, sprintGap: 6, sprintOffset: 0,
+    sprintOpacity: 100, sprintFollowColor: true, sprintColor: '#ffffff', sprintLabel: true,
+    sprintDecimals: 2, sprintAlign: 'center', sprintBackground: false, sprintBorder: false,
+    sprintAnimate: true, sprintAnimation: 'slide', sprintAnimationMs: 350,
+    sprintAutoRearm: true, sprintArmDelay: 0.5
   };
   var ENUMS = {style: ['clean', 'outline', 'race', 'neon', 'hyper', 'minimal', 'digital'],
-    units: ['kmh', 'mph'], source: ['wheel', 'air', 'dynamic']};
+    units: ['kmh', 'mph'], source: ['wheel', 'air', 'dynamic'],
+    sprintAlign: ['left','center','right'], sprintAnimation: ['fade','slide','pop']};
   var LIMITS = {size: [28, 220], digitSpacing: [-8, 8], numberWeight: [400, 700], decimals: [0, 2],
     x: [3, 97], y: [5, 95], outline: [0, 5], shadow: [0, 100], opacity: [15, 100],
     smoothing: [0, 500], glow: [0, 40], reactiveScale: [0, 20], warningSpeed: [1, 700],
-    panelX: [0, 100], panelY: [0, 100], panelWidth: [280, 480], panelHeight: [300, 760]};
+    panelX: [0, 100], panelY: [0, 100], panelWidth: [280, 480], panelHeight: [300, 760],
+    sprintDuration: [1,15], sprintSize: [10,40], sprintGap: [0,48], sprintOffset: [-120,120],
+    sprintOpacity: [20,100], sprintDecimals: [1,3], sprintAnimationMs: [100,900], sprintArmDelay: [0.2,2]};
   var STYLE_NAMES = {clean:'Clean', outline:'Kontur', race:'Racing', neon:'Neon', hyper:'Hyper', minimal:'Minimal', digital:'Digjital'};
   // Every look keeps the number and unit in one inline, shared-color instrument.
   var LOOKS = {
@@ -50,6 +58,7 @@
       else if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) result[key] = v;
     });
     result.decimals = Math.round(result.decimals);
+    result.sprintDecimals = Math.round(result.sprintDecimals);
     return result;
   }
   function convert(ms, units) { return Math.abs(finite(ms) ? ms : 0) * (units === 'mph' ? 2.2369362921 : 3.6); }
@@ -96,10 +105,55 @@
     });
     return {x:best[0],y:best[1]};
   }
+  // Pure simulation-time state machine. No wall clock, smoothing or wheel speed.
+  // Created only after the user explicitly enables 0-100; never persisted mid-run.
+  function createSprint() {
+    var phase, previous, stoppedAt, startedAt;
+    function reset() { phase = 'idle'; previous = null; stoppedAt = null; startedAt = null; }
+    reset();
+    return {
+      reset: reset,
+      phase: function () { return phase; },
+      sample: function (kmh, time, config) {
+        if (!finite(kmh) || kmh < 0 || !finite(time) || time < 0) { reset(); return null; }
+        if (previous && time < previous.time) { reset(); return null; }
+        if (previous && time === previous.time) return null; // paused simulation
+        if (previous && time - previous.time > 0.5) reset(); // dropped samples / seek
+        var result = null;
+        if (kmh <= 0.5) {
+          if (phase === 'running' || (phase === 'finished' && config.sprintAutoRearm)) {
+            phase = 'idle'; stoppedAt = null; startedAt = null;
+          }
+          if (phase !== 'finished') {
+            if (stoppedAt === null) stoppedAt = time;
+            if (time - stoppedAt >= config.sprintArmDelay - 1e-9) phase = 'armed';
+          }
+        } else {
+          if (phase === 'armed' && previous) {
+            phase = 'running';
+            // Estimate zero-speed departure from the first motion samples. Bound the
+            // extrapolation to 100 ms so low-speed noise cannot invent a long run.
+            var back = previous.kmh / (kmh-previous.kmh) * (time-previous.time);
+            startedAt = Math.max(stoppedAt+config.sprintArmDelay,previous.time-Math.min(0.1,back));
+          }
+          if (phase === 'idle') stoppedAt = null;
+          if (phase === 'running' && previous && previous.kmh < 100 && kmh >= 100) {
+            // Interpolate the 100 km/h crossing between real 20 Hz samples.
+            var finish = previous.time + (100 - previous.kmh) / (kmh - previous.kmh) * (time - previous.time);
+            var seconds = finish - startedAt;
+            phase = 'finished'; stoppedAt = null;
+            if (seconds > 0 && seconds <= 120) result = seconds;
+          } else if (phase === 'running' && time - startedAt > 120) reset();
+        }
+        previous = {kmh:kmh,time:time};
+        return result;
+      }
+    };
+  }
   var BUILTINS = {};
   ENUMS.style.forEach(function (name) { BUILTINS[STYLE_NAMES[name]] = LOOKS[name]; });
   var API = {defaults: DEFAULTS, sanitize: sanitize, convert: convert, selectedSpeed: selectedSpeed,
-    looks: LOOKS, formatSpeed: formatSpeed, panelCorner: panelCorner, speedSample: speedSample, smooth: smooth, speedColor: speedColor, presets: BUILTINS};
+    createSprint: createSprint, looks: LOOKS, formatSpeed: formatSpeed, panelCorner: panelCorner, speedSample: speedSample, smooth: smooth, speedColor: speedColor, presets: BUILTINS};
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   global.ApexSpeedometer = API;
   API.mount = function (root, options) {
@@ -129,20 +183,24 @@
     root.innerHTML = '<div class="as-hud" role="group" aria-label="Shpejtësimatësi" tabindex="0">' +
       '<div class="as-reading">' +
       '<span class="as-number" title="Kliko për km/h ↔ mph">—</span><span class="as-unit">KM/H</span></div>' +
-      '<div class="as-meta"></div><div class="as-edit-hint">ZHVENDOSE NË EKRAN · ⚙ PËR CILËSIMET</div></div>' +
+      '<div class="as-meta"></div><div class="as-sprint" role="status" aria-live="polite" hidden><div class="as-sprint-card"><span class="as-sprint-label"></span><b class="as-sprint-time"></b></div></div><div class="as-edit-hint">ZHVENDOSE NË EKRAN · ⚙ PËR CILËSIMET</div></div>' +
       '<button class="as-settings-button" type="button" title="Hap cilësimet" aria-label="Hap cilësimet" aria-expanded="false">' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 3h5l.5 2.5 2 1.2 2.5-.8 2.5 4.3-2 1.8v2l2 1.8-2.5 4.3-2.5-.8-2 1.2-.5 2.5h-5L9 20.5l-2-1.2-2.5.8L2 15.8 4 14v-2l-2-1.8L4.5 6 7 6.8l2-1.2z" transform="translate(0 -1) scale(1 .95)"/><circle cx="12" cy="11.5" r="3"/></svg></button>' +
       '<section id="apex-settings-panel" class="as-panel" aria-label="Cilësimet e shpejtësisë" hidden>' +
       '<header class="as-header" tabindex="0" title="Tërhiqe panelin me maus" aria-label="Zhvendos panelin e cilësimeve"><div class="as-brandmark">A</div><div><h1>APEX <span>SHPEJTËSIMATËSI</span></h1>' +
       '<p>↔ Tërhiqe panelin ku të duash</p></div><button class="as-collapse" type="button" title="Mblidh / zgjero panelin" aria-label="Mblidh / zgjero panelin">−</button><button class="as-close" title="Mbyll cilësimet" aria-label="Mbyll cilësimet">×</button></header>' +
-      '<div class="as-status"><span></span>' + (options.demo ? 'PARAPAMJE E SIMULUAR · JO TË DHËNA NGA LOJA' : 'BEAMNG HUD · 0.3.1 / VERSION PROVUES') + '</div>' +
+      '<div class="as-status"><span></span>' + (options.demo ? 'PARAPAMJE E SIMULUAR · JO TË DHËNA NGA LOJA' : 'BEAMNG HUD · 0.3.3 / VERSION PROVUES') + '</div>' +
       '<div class="as-source-status" aria-live="polite"></div><nav class="as-nav" aria-label="Kategoritë e cilësimeve"></nav><div class="as-content"></div>' +
       '<footer class="as-footer"><button type="button" data-action="panel-away" class="as-away" title="Largo panelin nga numri">↔ Largo</button><span class="as-save-state">U ruajt në këtë pajisje</span><button class="as-done">Mbyll ↗</button></footer></section>';
     root.querySelectorAll('button').forEach(function (button) { button.type = 'button'; });
     var hud = root.querySelector('.as-hud'), panel = root.querySelector('.as-panel');
     var content = root.querySelector('.as-content'), number = root.querySelector('.as-number');
     var unit = root.querySelector('.as-unit'), meta = root.querySelector('.as-meta');
-        function on(el, event, fn, opts) { el.addEventListener(event, fn, opts); cleanups.push(function () { el.removeEventListener(event, fn, opts); }); }
+    var sprintElement = root.querySelector('.as-sprint'), sprint = null, sprintResult = null;
+    var sprintTexts = [sprintElement.firstElementChild,sprintElement.querySelector('.as-sprint-label'),sprintElement.querySelector('.as-sprint-time')];
+    var sprintUntil = 0, sprintExit = 0, sprintIsPreview = false, sprintLastSampleAt = -Infinity;
+    var reducedMotion = global.matchMedia ? global.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    function on(el, event, fn, opts) { el.addEventListener(event, fn, opts); cleanups.push(function () { el.removeEventListener(event, fn, opts); }); }
     function notify(message) { root.querySelector('.as-save-state').textContent = message; }
     function save() {
       clearTimeout(saveTimer);
@@ -156,9 +214,86 @@
       if (open) render();
       else { dragging = null; hud.classList.remove('as-dragging'); apply(); }
     }
+    function clearSprintResult() {
+      var visible = !sprintElement.hidden;
+      sprintResult = null; sprintUntil = 0; sprintExit = 0;
+      sprintElement.hidden = true; sprintElement.removeAttribute('data-phase'); sprintElement.removeAttribute('aria-label');
+      sprintElement.querySelector('.as-sprint-time').textContent = '';
+      sprintElement.querySelector('.as-sprint-label').textContent = '';
+      if (visible) fit();
+    }
+    function resetSprint() {
+      if (sprint) sprint.reset();
+      sprintLastSampleAt = -Infinity; clearSprintResult();
+    }
+    function sprintAnimationTime() {
+      return settings.sprintAnimate && !(reducedMotion && reducedMotion.matches) ? settings.sprintAnimationMs : 0;
+    }
+    function styleSprint() {
+      sprintElement.dataset.animation = sprintAnimationTime() ? settings.sprintAnimation : 'none';
+      sprintElement.dataset.align = settings.sprintAlign;
+      sprintElement.classList.toggle('as-sprint-backed',settings.sprintBackground);
+      sprintElement.classList.toggle('as-sprint-bordered',settings.sprintBorder);
+      sprintElement.style.setProperty('--sprint-size',settings.sprintSize+'px');
+      sprintElement.style.setProperty('--sprint-gap',settings.sprintGap+'px');
+      sprintElement.style.setProperty('--sprint-offset',settings.sprintOffset+'px');
+      sprintElement.style.setProperty('--sprint-opacity',settings.sprintOpacity/100);
+      sprintElement.style.setProperty('--sprint-animation-ms',settings.sprintAnimationMs+'ms');
+      if (sprintResult !== null) {
+        sprintElement.querySelector('.as-sprint-label').textContent = settings.sprintLabel ? (sprintIsPreview ? 'PROVË · ' : '')+'0–100 km/h' : (sprintIsPreview ? 'PROVË' : '');
+        sprintElement.querySelector('.as-sprint-time').textContent = sprintResult.toFixed(settings.sprintDecimals)+' s';
+        sprintElement.setAttribute('aria-label',(sprintIsPreview ? 'Parapamje. ' : '')+'0–100 km/h: '+sprintResult.toFixed(settings.sprintDecimals)+' sekonda');
+      }
+    }
+    function syncSprint() {
+      if (settings.sprintEnabled && settings.enabled) {
+        if (!sprint) { sprint = API.createSprint(); sprintLastSampleAt = -Infinity; }
+      } else {
+        sprint = null; clearSprintResult();
+      }
+      if (!sprint) { var state = content.querySelector('.as-sprint-state'); if (state) state.textContent = 'OFF · PA MATJE NË PRAPAVIJË'; }
+      styleSprint();
+      content.querySelectorAll('[data-action="sprint-preview"],[data-action="sprint-reset"]').forEach(function (button) { button.disabled = !sprint; });
+    }
+    function showSprintResult(seconds, preview) {
+      if (!sprint) return;
+      sprintResult = seconds; sprintIsPreview = !!preview; sprintExit = 0;
+      sprintUntil = performance.now()+settings.sprintDuration*1000;
+      sprintElement.hidden = false;
+      sprintElement.removeAttribute('data-phase');
+      styleSprint(); void sprintElement.offsetWidth;
+      sprintElement.dataset.phase = 'in'; fit();
+    }
+    function sampleSprint(kmh, simTime) {
+      if (!sprint) return; // OFF: no state machine or 0-100 calculations at all.
+      if (!finite(simTime) || !finite(kmh)) { resetSprint(); return; }
+      sprintLastSampleAt = performance.now();
+      var before = sprint.phase(), result = sprint.sample(kmh,simTime,settings);
+      if (result === null && before !== 'running' && sprint.phase() === 'running') clearSprintResult();
+      if (result !== null) showSprintResult(result,false);
+    }
+    function tickSprint(now) {
+      if (!sprint) return;
+      if (!options.demo && now-sprintLastSampleAt > 1800 && sprint.phase() !== 'idle') resetSprint();
+      if (sprintResult !== null && now >= sprintUntil) {
+        if (!sprintExit) {
+          var duration = sprintAnimationTime();
+          if (!duration) { clearSprintResult(); return; }
+          sprintElement.dataset.phase = 'out'; sprintExit = now+duration;
+        } else if (now >= sprintExit) clearSprintResult();
+      }
+      var status = content.querySelector('.as-sprint-state');
+      if (status) status.textContent = !options.demo && now-sprintLastSampleAt > 1800 ? 'NË PRITJE TË LUA / KOHËS SË SIMULIMIT' :
+        ({idle:'NDALO VETURËN PËR PROVË TË RE',armed:'GATI · NISU PREJ VENDIT',running:'DUKE MATUR · REZULTATI VETËM NË 100 KM/H',finished:'PROVA PËRFUNDOI'})[sprint.phase()];
+    }
     function paint(speedKmh) {
       var value = speedColor(speedKmh, settings);
       hud.style.setProperty('--as-color', value);
+      var resultColor = settings.sprintFollowColor ? value : settings.sprintColor;
+      sprintElement.style.setProperty('--sprint-color',resultColor);
+      if (sprint) sprintTexts.forEach(function (el) {
+        el.style.setProperty('color',resultColor,'important'); el.style.setProperty('-webkit-text-fill-color',resultColor,'important');
+      });
       [number, unit].forEach(function (el) {
         el.style.setProperty('color', value, 'important'); el.style.setProperty('-webkit-text-fill-color', value, 'important');
       });
@@ -174,6 +309,8 @@
       settings = sanitize(next);
       if (oldUnits !== settings.units) displayed *= settings.units === 'mph' ? 2.2369362921/3.6 : 3.6/2.2369362921;
       if (key === 'color') settings.adaptiveColor = false;
+      if (key === 'sprintColor') settings.sprintFollowColor = false;
+      if (key === 'sprintArmDelay' || key === 'sprintAutoRearm') resetSprint();
       content.querySelectorAll('input[type="checkbox"][data-key]').forEach(function (input) { input.checked = settings[input.dataset.key]; });
       content.querySelectorAll('[data-set]').forEach(function (button) { button.setAttribute('aria-pressed',String(settings[button.dataset.set]) === button.dataset.value); });
       apply(); scheduleSave();
@@ -192,16 +329,24 @@
       hud.style.setProperty('--as-opacity', settings.opacity / 100);
       hud.style.left = settings.x + '%'; hud.style.top = settings.y + '%';
       unit.textContent = settings.units === 'mph' ? 'mph' : 'km/h';
-      updateReading(); fit(); positionPanel();
+      syncSprint(); updateReading(); fit(); positionPanel();
+    }
+    function instrumentBounds() {
+      var h = hud.getBoundingClientRect();
+      if (sprintElement.hidden) return h;
+      var r = sprintElement.getBoundingClientRect();
+      var left = Math.min(h.left,r.left), top = Math.min(h.top,r.top);
+      var right = Math.max(h.right,r.right), bottom = Math.max(h.bottom,r.bottom);
+      return {left:left,top:top,right:right,bottom:bottom,width:right-left,height:bottom-top};
     }
     function fit() {
       // Keep the whole HUD visible, even at large font sizes or after a resolution change.
       hud.style.marginLeft = '0px'; hud.style.marginTop = '0px';
       hud.style.setProperty('--as-fit', '1');
-      var rect = root.getBoundingClientRect(), h = hud.getBoundingClientRect();
+      var rect = root.getBoundingClientRect(), h = instrumentBounds();
       var scale = Math.min(1, Math.max(0.1, (rect.width - 24) / Math.max(h.width, 1)), Math.max(0.1, (rect.height - 24) / Math.max(h.height, 1)));
       hud.style.setProperty('--as-fit', scale);
-      h = hud.getBoundingClientRect();
+      h = instrumentBounds();
       var dx = h.left < rect.left + 12 ? rect.left + 12 - h.left : h.right > rect.right - 12 ? rect.right - 12 - h.right : 0;
       var dy = h.top < rect.top + 12 ? rect.top + 12 - h.top : h.bottom > rect.bottom - 12 ? rect.bottom - 12 - h.bottom : 0;
       hud.style.marginLeft = dx + 'px'; hud.style.marginTop = dy + 'px';
@@ -234,8 +379,8 @@
         '<button type="button" data-apply-color="' + key + '">Apliko</button></div>' + swatches(key) + '</div>';
     }
     function render() {
-      root.querySelector('.as-nav').innerHTML = ['style', 'layout', 'color', 'behavior', 'presets'].map(function (id) {
-        return '<button type="button" data-tab="' + id + '" class="' + (pane === id ? 'active' : '') + '" aria-pressed="' + (pane === id) + '">' + ({style:'Pamja', layout:'Pozicioni', color:'Ngjyrat', behavior:'Vozitja', presets:'Stilet'})[id] + '</button>';
+      root.querySelector('.as-nav').innerHTML = ['style', 'layout', 'color', 'behavior', 'sprint', 'presets'].map(function (id) {
+        return '<button type="button" data-tab="' + id + '" class="' + (pane === id ? 'active' : '') + '" aria-pressed="' + (pane === id) + '">' + ({style:'Pamja', layout:'Pozicioni', color:'Ngjyrat', behavior:'Vozitja', sprint:'0–100', presets:'Stilet'})[id] + '</button>';
       }).join('');
       var html = '';
       if (pane === 'style') {
@@ -264,6 +409,23 @@
         html += select('adaptiveColor','Sjellja e ngjyrës',[[false,'Fikse (standard)'],[true,'Kalimi i lehtë']]);
         html += '<p class="as-note">Opsioni i lehtë: bardhë deri 60 km/h → amber në 100 → e kuqe në 140+. Pa cyan, blu, vjollcë ose pink automatik. Pragjet mbeten në km/h edhe kur shfaq mph.</p>';
         html += color('outlineColor','Ngjyra e konturit') + range('outline','Trashësia e konturit',0,5,' px');
+      } else if (pane === 'sprint') {
+        html = heading('0–100 KM/H','Vetëm kur e aktivizon.','OFF si standard: as matje, as sekonda në ekran. Kur është ON, shfaqet vetëm rezultati pas 100 km/h.');
+        html += toggle('sprintEnabled','Aktivizo matësin 0–100','OFF e ndal dhe e pastron menjëherë matjen/rezultatin.');
+        html += '<p class="as-sprint-state as-note">'+(settings.sprintEnabled ? 'NË PRITJE TË TË DHËNAVE' : 'OFF · PA MATJE NË PRAPAVIJË')+'</p>';
+        html += '<div class="as-two-col">'+range('sprintDuration','Sa rri rezultati',1,15,' s')+range('sprintSize','Madhësia e rezultatit',10,40,' px')+
+          range('sprintGap','Largësia poshtë',0,48,' px')+range('sprintOffset','Zhvendosje majtas/djathtas',-120,120,' px')+
+          range('sprintOpacity','Dukshmëria e rezultatit',20,100,'%')+'</div>';
+        html += select('sprintAlign','Rreshtimi',[['left','Majtas'],['center','Mes'],['right','Djathtas']]);
+        html += toggle('sprintLabel','Shfaq etiketën 0–100 km/h')+select('sprintDecimals','Saktësia e shfaqjes',[[1,'1 shifër'],[2,'2 shifra'],[3,'3 shifra']]);
+        html += toggle('sprintFollowColor','Ngjyra ndjek speedometrin')+color('sprintColor','Ngjyrë personale e rezultatit');
+        html += toggle('sprintBackground','Sfond i vogël i rezultatit')+toggle('sprintBorder','Kontur rreth rezultatit');
+        html += '<h3 class="as-group-title">ANIMACIONI</h3>'+toggle('sprintAnimate','Animacion ON / OFF');
+        html += select('sprintAnimation','Hyrja / dalja',[['fade','Fade'],['slide','Slide'],['pop','Pop']])+range('sprintAnimationMs','Kohëzgjatja e animacionit',100,900,' ms');
+        html += '<h3 class="as-group-title">PROVA TJETËR</h3>'+toggle('sprintAutoRearm','Bëhu gati automatikisht pas ndaljes');
+        html += range('sprintArmDelay','Sa duhet të rrish i ndalur',0.2,2,' s').replace('type="range"','step="0.1" type="range"');
+        html += '<div class="as-button-row"><button data-action="sprint-preview">Provo animacionin · 2.20 s</button><button data-action="sprint-reset">Pastro / provë e re</button></div>';
+        html += '<p class="as-note">Matet lëvizja reale dhe koha e simulimit nga Lua, jo gomat ose smoothing. Pa burim të besueshëm nuk jep rezultat. Pause nuk numërohet; slow-motion përdor kohën e simulimit. Fillimi ka tolerancë 0.5 km/h dhe matjet janë rreth 20 Hz: shifrat janë format shfaqjeje, jo garanci milisekondash. Respektimi i reduced motion e fik animacionin.</p>';
       } else if (pane === 'behavior') {
         html = select('source','Burimi',[['dynamic','Dinamik'],['air','Air'],['wheel','Gomat']]);
         html += '<p class="as-note">Dinamik / Air matin lëvizjen reale, edhe me goma të bllokuara. Gomat përdoren si rezervë e shënuar vetëm nëse të dhënat reale mungojnë.</p>';
@@ -396,6 +558,8 @@
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000); notify('Eksporti u kërkua'); return;
       }
       if (action === 'import') { content.querySelector('.as-file').click(); return; }
+      if (action === 'sprint-preview') { showSprintResult(2.20,true); return; }
+      if (action === 'sprint-reset') { resetSprint(); notify('Matësi 0–100 u pastrua'); return; }
       if (action === 'reset-all') {
         if (!global.confirm('Të rikthehen cilësimet? Stilet e ruajtura nuk fshihen.')) return;
         settings = sanitize(DEFAULTS); peakMs = 0;
@@ -475,6 +639,7 @@
       var dt = Math.min((now - previous) / 1000, 0.1); previous = now;
       if (options.demo) {
         data.wheel = demoMs; data.air = demoMs; data.ground = demoMs; data.wheelAt = now; data.airAt = now; data.groundAt = now;
+        if (sprint) sampleSprint(demoMs*3.6,now/1000);
       }
       var sample = speedSample(data, settings.source, now);
       var ms = sample ? sample.speed : null, available = sample !== null;
@@ -501,6 +666,7 @@
         sample.source === 'wheel' ? 'RROTULLIMI I GOMAVE' : 'LËVIZJE REALE · ' + (sample.source === 'ground' ? 'LUA' : 'STREAM AIR');
       if (status.textContent !== mode + ' / ' + sourceText) status.textContent = mode + ' / ' + sourceText;
       status.dataset.fallback = String(!!sample && sample.source === 'wheel-fallback');
+      if (sprint) tickSprint(now);
       frame = requestAnimationFrame(tick);
     }
     function updateElectrics(electrics) {
@@ -514,17 +680,22 @@
     function updateGround(payload) {
       if (!payload) return;
       if (payload.reset) {
+        resetSprint();
         data.wheel = null; data.air = null; data.wheelAt = -Infinity; data.airAt = -Infinity;
         displayed = 0; peakMs = 0;
       }
       if (payload.available && finite(payload.speed)) { data.ground = Math.max(0, payload.speed); data.groundAt = performance.now(); }
       else { data.ground = null; data.groundAt = -Infinity; }
+      if (sprint) {
+        if (payload.available && finite(payload.speed) && payload.speed >= 0) sampleSprint(payload.speed*3.6,payload.simTime);
+        else resetSprint();
+      }
     }
     visible(!!options.demo); apply(); frame = requestAnimationFrame(tick);
     return {
       updateElectrics: updateElectrics, updateGround: updateGround,
       destroy: function () {
-        destroyed = true; cancelAnimationFrame(frame); clearTimeout(saveTimer); save();
+        destroyed = true; sprint = null; cancelAnimationFrame(frame); clearTimeout(saveTimer); save();
         cleanups.forEach(function (fn) { fn(); }); if (observer) observer.disconnect(); root.innerHTML = '';
       }
     };
@@ -540,8 +711,8 @@
             document.head.appendChild(css);
           }
           // Reusing the UI layout must not keep a previous build's stylesheet alive.
-          if (css.getAttribute('href') !== '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.1') {
-            css.href = '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.1';
+          if (css.getAttribute('href') !== '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.3') {
+            css.href = '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.3';
           }
           var app = API.mount(element[0]);
           StreamsManager.add(['electrics']);

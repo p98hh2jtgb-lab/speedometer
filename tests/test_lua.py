@@ -77,5 +77,33 @@ class ExtensionTests(unittest.TestCase):
         self.module.onUpdate(0.05)
         self.assertFalse(self.lua.globals().events[1]['data']['available'])
 
+    def test_simulation_clock_uses_dt_sim_and_accumulates_before_throttle(self):
+        self.module.onUpdate(0.025, 0.005)
+        self.module.onUpdate(0.025, 0.005)
+        self.assertAlmostEqual(self.lua.globals().events[1]['data']['simTime'], 0.01)
+        self.module.onUpdate(0.05, 0.1)
+        self.assertAlmostEqual(self.lua.globals().events[2]['data']['simTime'], 0.11)
+
+    def test_pause_keeps_clock_fixed_while_motion_stream_remains_fresh(self):
+        self.module.onUpdate(0.05, 0.05)
+        self.module.onUpdate(0.05, 0)
+        self.assertEqual(len(self.lua.globals().events), 2)
+        self.assertEqual(self.lua.globals().events[1]['data']['simTime'], self.lua.globals().events[2]['data']['simTime'])
+
+    def test_missing_or_invalid_sim_clock_never_falls_back_to_real_time(self):
+        for dt in [None, -1, float('nan'), float('inf')]:
+            self.module.onUpdate(0.05, dt)
+            event = self.lua.globals().events[len(self.lua.globals().events)]
+            self.assertIsNone(event['data']['simTime'])
+            self.assertEqual(event['data']['speed'], 27.5)
+
+    def test_vehicle_reset_carries_clock_without_forging_elapsed_time(self):
+        self.module.onUpdate(0.05, 0.02)
+        self.module.onVehicleResetted(42)
+        event = self.lua.globals().events[2]['data']
+        self.assertTrue(event['reset'])
+        self.assertEqual(event['speed'], 0)
+        self.assertAlmostEqual(event['simTime'], 0.02)
+
 if __name__ == '__main__':
     unittest.main()

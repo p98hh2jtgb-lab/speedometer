@@ -2,6 +2,8 @@
 -- UI also reads electrics.airspeed directly; this is a second, independent path.
 local M = {}
 local elapsed = 0
+local simTime = 0
+local clockAvailable = false
 local lastVehicle = nil
 local hadVehicle = false
 
@@ -44,7 +46,9 @@ local function velocityMagnitude(vehicle)
   return nil
 end
 
-local function onUpdate(dtReal)
+local function onUpdate(dtReal, dtSim)
+  clockAvailable = number(dtSim) and dtSim >= 0
+  if clockAvailable then simTime = simTime + dtSim end
   elapsed = elapsed + (dtReal or 0)
   if elapsed < 0.05 then return end
   elapsed = elapsed % 0.05
@@ -61,14 +65,16 @@ local function onUpdate(dtReal)
   lastVehicle, hadVehicle = id, true
   local speed = velocityMagnitude(vehicle)
   guihooks.trigger('apexSpeedometer.ground', {
-    available = speed ~= nil, speed = speed, vehicleId = id, reset = changed
+    available = speed ~= nil, speed = speed, vehicleId = id, reset = changed,
+    simTime = clockAvailable and simTime or nil
   })
 end
 
 local function onVehicleResetted(id)
   local vehicle = playerVehicle()
   if vehicle and vehicle:getID() == id then
-    guihooks.trigger('apexSpeedometer.ground', {available = true, speed = 0, reset = true})
+    guihooks.trigger('apexSpeedometer.ground', {available = true, speed = 0, reset = true,
+      simTime = clockAvailable and simTime or nil})
   end
 end
 

@@ -1,8 +1,8 @@
 {
   "name": "APEX · Shpejtësimatësi",
-  "description": "Speed HUD clean në shqip. Numri dhe km/h bashkë, të bardhë si standard. Pa marsh, pa RPM, pa ylber automatik. ⚙ hap cilësimet, X mbyll.",
+  "description": "Pamja clean e 0.3.1. Matës 0–100 opsional, OFF si standard, me rezultat dhe animacion të personalizueshëm. Pa marsh/RPM. ⚙ hap cilësimet.",
   "author": "speedometer project",
-  "version": "0.3.1",
+  "version": "0.3.3",
   "directive": "apexSpeedometer",
   "domElement": "<apex-speedometer></apex-speedometer>",
   "css": {

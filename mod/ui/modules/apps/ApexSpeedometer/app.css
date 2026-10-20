@@ -59,3 +59,18 @@
 @media(prefers-reduced-motion:reduce){.apex-speedometer *{transition:none!important;animation:none!important}}
 
 .as-toggle-row{cursor:pointer}.as-collapsed .as-header h1 span,.as-collapsed .as-header p{display:none}
+
+/* Optional 0-100: absolute placement never separates or reflows the speed/unit. */
+.as-sprint{position:absolute;top:calc(100% + var(--sprint-gap,6px));left:calc(50% + var(--sprint-offset,0px));transform:translateX(-50%);width:max-content;max-width:none;opacity:var(--sprint-opacity,1);pointer-events:none;white-space:nowrap;color:var(--sprint-color,#fff)}
+.as-sprint[data-align=left]{left:calc(12px + var(--sprint-offset,0px));transform:none}.as-sprint[data-align=right]{left:auto;right:calc(12px - var(--sprint-offset,0px));transform:none}
+.as-sprint-card{display:flex;align-items:baseline;gap:7px;padding:3px 5px;border:1px solid transparent;border-radius:6px;background:transparent;font:600 var(--sprint-size,18px)/1.25 'Apex Barlow','Arial Narrow',Arial,sans-serif;letter-spacing:0;text-shadow:0 1px 5px #000a;-webkit-text-stroke:0;color:var(--sprint-color,#fff);-webkit-text-fill-color:var(--sprint-color,#fff)}
+.as-sprint-label{font-size:.72em;letter-spacing:.03em}.as-sprint-label:empty{display:none}.as-sprint-time{font-weight:600;font-variant-numeric:tabular-nums}.as-sprint-backed .as-sprint-card{background:#0b1420dd}.as-sprint-bordered .as-sprint-card{border-color:#ffffff55}
+.as-sprint[data-phase=in] .as-sprint-card{animation:as-sprint-fade-in var(--sprint-animation-ms,350ms) ease-out both}.as-sprint[data-phase=out] .as-sprint-card{animation:as-sprint-fade-out var(--sprint-animation-ms,350ms) ease-in both}
+.as-sprint[data-animation=slide][data-phase=in] .as-sprint-card{animation-name:as-sprint-slide-in}.as-sprint[data-animation=slide][data-phase=out] .as-sprint-card{animation-name:as-sprint-slide-out}
+.as-sprint[data-animation=pop][data-phase=in] .as-sprint-card{animation-name:as-sprint-pop-in}.as-sprint[data-animation=pop][data-phase=out] .as-sprint-card{animation-name:as-sprint-pop-out}
+.as-sprint[data-animation=none] .as-sprint-card{animation:none}
+@keyframes as-sprint-fade-in{from{opacity:0}to{opacity:1}}@keyframes as-sprint-fade-out{from{opacity:1}to{opacity:0}}
+@keyframes as-sprint-slide-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes as-sprint-slide-out{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-5px)}}
+@keyframes as-sprint-pop-in{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}@keyframes as-sprint-pop-out{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.94)}}
+.as-button-row button:disabled{opacity:.4;cursor:not-allowed}
+@media(prefers-reduced-motion:reduce){.as-sprint .as-sprint-card{animation:none!important}}
