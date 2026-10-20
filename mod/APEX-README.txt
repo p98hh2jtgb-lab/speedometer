@@ -1,40 +1,48 @@
-APEX · Shpejtësimatësi 0.2.1 — version provues në shqip
-Target: BeamNG.drive 0.39.4. Ndryshimet e reja ende kërkojnë test brenda lojës.
+APEX · Shpejtësimatësi 0.3.0 — version provues në shqip
+Target: BeamNG.drive 0.39.4. Ndryshimet e reja kërkojnë ende provë në lojë.
 
-PËRDITËSIMI
-- Hiqi / çaktivizoji ZIP-at e vjetër APEX 0.1.0 dhe 0.2.0. Mbaje vetëm këtë version aktiv.
-- Vendose apex-speedometer-0.2.1.zip pa e shpaketuar në mods të user folder-it aktiv.
-- Bëj restart të plotë të lojës që të mos mbetet UI-ja e vjetër në memorie.
-- Te UI Apps kërko APEX · Shpejtësimatësi. Lëre app-in full screen.
+INSTALIMI
+Hiqi / çaktivizoji TË GJITHË ZIP-at e vjetër APEX para instalimit.
+Vendose vetëm apex-speedometer-0.3.0.zip në mods të user folder-it aktiv, pa e shpaketuar.
+Bëj restart të plotë. Te UI Apps përdor një APEX · Shpejtësimatësi, full screen.
+Paneli tregon versionin 0.3.0; nëse shfaq tjetër version, kontrollo ZIP-at e vjetër.
 
-KONTROLLET
-Kliko butonin e vogël ⚙ sipër djathtas për t’i hapur cilësimet.
-Kliko X në panel për t’i mbyllur. Butoni punon edhe kur numri është i fshehur.
-Ctrl+H, komanda Lua dhe binding-u i tij u hoqën nga ky version.
-Nuk ka më buton APEX në fund të ekranit.
-Nëse ke caktuar manualisht një binding të vjetër në Controls, hiqe edhe atë.
-Right-click mbi numrin mbetet si mënyrë alternative.
-Pozicioni -> çaktivizo Blloko pozicionin për ta zhvendosur me panelin hapur.
+PANELI DHE NUMRI LËVIZIN VEÇMAS
+⚙ sipër djathtas hap panelin; X e mbyll. Nuk ka Ctrl+H.
+Paneli është më i vogël: 340 × 560 px si standard.
+Tërhiqe nga titulli për ta vendosur ku nuk ta mbulon numrin. Pozicioni ruhet.
+− e mbledh panelin; + e zgjeron. “↔ Largo” zgjedh një cep me më pak mbulim të numrit.
+Te Pozicioni mund të ndryshosh gjerësinë, lartësinë dhe X/Y e panelit veçmas.
+Për numrin: Pozicioni -> çaktivizo Blloko numrin -> tërhiq numrin në ekran.
 
-BURIMET
-Dinamik (standard): përdor shpejtësinë reale të lëvizjes, jo rrotullimin e gomave.
-Lexon electrics.airspeed / airSpeed dhe ka edhe rrugë të pavarur përmes GE Lua.
-Kur gomat bllokohen, shpejtësia nuk bëhet 0 nëse vetura ende lëviz.
-Air: vetëm shpejtësia reale; shfaq — nëse të dhënat mungojnë.
-Gomat: vetëm rrotullimi i gomave, sipas dëshirës.
-Në Dinamik, nëse të dy burimet reale mungojnë, përdoren gomat me paralajmërim REZERVË.
-Air këtu do të thotë lëvizja në botën e lojës (përfshirë lëvizjen vertikale), jo era.
+KM/H / MPH
+Butonat km/h dhe mph bëjnë konvertim të menjëhershëm, pa dropdown native.
+Mund të klikosh edhe numrin ose njësinë në lojë për t’i ndërruar.
+Gjatë editimit të pozicionit, drag-u nuk ndërron njësinë pa dashje.
+Njësia, madhësia, trashësia, pjerrësia dhe ngjyra rregullohen veçmas nga numri.
 
-NGJYRAT DHE PAMJA
-Ngjyra fikse: përdor paletën, fushën HEX ose zgjedhësin e ngjyrës.
-Zgjedhja e ngjyrës kryesore çaktivizon kalimin automatik që ngjyra të duket menjëherë.
-Aktivizo Ngjyra sipas shpejtësisë për kalime graduale mes ngjyrave/pragjeve.
-Hapësira numër – njësi dhe Hapësira mes shifrave rregullohen veçmas te Pamja.
-Shiriti RPM ka kufi manual; nuk zbulon automatikisht redline-in.
+STILE QË DUKEN NDRYSHE
+Racing: numër i trashë i pjerrët, vijë teknike dhe shenja poshtë.
+Neon: font monospaced, shkëlqim, njësi poshtë dhe vijë e ndriçuar.
+Hyper: pllakë këndore, vija sportive dhe zmadhim sipas shpejtësisë.
+Minimal: font i hollë, madhësi më e vogël, njësi diskrete poshtë.
+Plus Clean, Kontur dhe Digjital. Të gjitha janë pamje HUD-i, jo modifikime fizike.
 
-Nuk ka survival, damage, boost ose ndryshime të fizikës së veturës.
-Cilësimet ruhen lokalisht. Eksporto stilin nga Stilet për kopje rezervë.
-Fontet Barlow Condensed shpërndahen me licencën SIL OFL te dosja fonts.
+NGJYRAT
+Përdor paletën ose HEX + Apliko; nuk duhet zgjedhësi native i ngjyrës.
+Ngjyra fikse e numrit aktivizohet menjëherë kur e zgjedh.
+Spektri: 0 bardhë -> 5 cyan -> 20 blu -> 40 vjollcë -> 60 rozë -> 80 portokalli -> 100+ kuqe.
+Kalimet janë graduale. Pragjet maten në km/h reale edhe nëse shfaq mph.
+Çdo ngjyrë e spektrit mund të ndryshohet ose të rikthehet.
+Ngjyra e njësisë mund të ndjekë numrin ose të jetë e pavarur.
 
-Kodi dhe udhëzimet:
-https://github.com/p98hh2jtgb-lab/speedometer/tree/arena/c4a2d9cd-speedometer
+VOZITJA
+Dinamik (standard) dhe Air matin lëvizjen reale edhe me goma të bllokuara.
+Gomat është opsion eksplicit. Dinamik përdor gomat si rezervë të shënuar kur burimet reale mungojnë.
+Air është lëvizja XYZ e lojës, jo matja e erës; përfshin edhe komponentin vertikal.
+Opsione: 0/1/2 decimale, zbutje, shkëlqim, zmadhim sipas shpejtësisë, maksimum sesioni,
+paralajmërim shpejtësie, fshehje kur ndalet, marsh dhe shirit RPM opsional me kufi manual.
+
+Pa survival, damage, boost ose ndryshime të fizikës. Stilet/cilësimet ruhen lokalisht.
+Fontet Barlow Condensed shpërndahen me SIL OFL te dosja fonts.
+Kodi: https://github.com/p98hh2jtgb-lab/speedometer/tree/arena/c4a2d9cd-speedometer

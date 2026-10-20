@@ -1,8 +1,8 @@
 {
   "name": "APEX · Shpejtësimatësi",
-  "description": "Shpejtësimatës në shqip, me ngjyra dhe stile. Butoni ⚙ sipër djathtas hap cilësimet; X i mbyll.",
+  "description": "Speed HUD në shqip: Racing, Neon, Hyper, Minimal. Panel i vogël i lëvizshëm, spektër ngjyrash 0–100 km/h, njësi me butona direkt. ⚙ hap, X mbyll.",
   "author": "speedometer project",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "directive": "apexSpeedometer",
   "domElement": "<apex-speedometer></apex-speedometer>",
   "css": {
