@@ -1,0 +1,5 @@
+{
+  "bindings": [
+    { "action": "apex_speedometer_toggle_settings", "control": "ctrl+h" }
+  ]
+}

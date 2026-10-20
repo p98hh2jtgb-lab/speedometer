@@ -1,18 +1,38 @@
-APEX Speedometer 0.1.0 — first test build
-Target: BeamNG.drive 0.39.4. In-game compatibility is NOT yet verified.
+APEX · Shpejtësimatësi 0.2.0 — version provues në shqip
+Target: BeamNG.drive 0.39.4. Ndryshimet e reja ende kërkojnë test brenda lojës.
 
-Install this ZIP, without extracting, in your active BeamNG user folder's mods
-folder. Enable it, enter Free Roam, and add APEX Speedometer from UI Apps.
-Keep the UI app fullscreen, then exit the game's UI Apps editor.
+PËRDITËSIMI
+- Hiqe / çaktivizoje apex-speedometer-0.1.0.zip para instalimit të këtij versioni.
+- Vendose apex-speedometer-0.2.0.zip pa e shpaketuar në mods të user folder-it aktiv.
+- Bëj restart të plotë të lojës që të ngarkohen edhe komandat e tastierës.
+- Te UI Apps kërko APEX · Shpejtësimatësi. Lëre app-in full screen.
 
-Click APEX at the bottom-left or right-click the speed number for settings.
-Layout -> disable Lock HUD position to drag the number while settings are open.
-Alt+Shift+S toggles settings only when the UI receives keyboard input.
+KONTROLLET
+Ctrl+H hap / mbyll cilësimet edhe kur je duke vozitur (komandë native e lojës).
+Nuk ka më buton APEX në fund të ekranit.
+Nëse Ctrl+H ka konflikt, te Settings -> Controls kërko APEX dhe cakto Ctrl+H.
+Right-click mbi numrin mbetet si mënyrë alternative.
+Pozicioni -> çaktivizo Blloko pozicionin për ta zhvendosur me panelin hapur.
 
-No damage/survival HUDs. No boost or vehicle physics changes.
-Ground speed is world-velocity magnitude; wheel speed is the electrics stream.
-RPM bar maximum is manual. A dash indicates no fresh data from the chosen source.
-All options are saved locally by the game UI. Use Presets -> Export to back up a look.
+BURIMET
+Dinamik (standard): përdor shpejtësinë reale të lëvizjes, jo rrotullimin e gomave.
+Lexon electrics.airspeed / airSpeed dhe ka edhe rrugë të pavarur përmes GE Lua.
+Kur gomat bllokohen, shpejtësia nuk bëhet 0 nëse vetura ende lëviz.
+Air: vetëm shpejtësia reale; shfaq — nëse të dhënat mungojnë.
+Gomat: vetëm rrotullimi i gomave, sipas dëshirës.
+Në Dinamik, nëse të dy burimet reale mungojnë, përdoren gomat me paralajmërim REZERVË.
+Air këtu do të thotë lëvizja në botën e lojës (përfshirë lëvizjen vertikale), jo era.
 
-Source, instructions, known limitations:
+NGJYRAT DHE PAMJA
+Ngjyra fikse: përdor paletën, fushën HEX ose zgjedhësin e ngjyrës.
+Zgjedhja e ngjyrës kryesore çaktivizon kalimin automatik që ngjyra të duket menjëherë.
+Aktivizo Ngjyra sipas shpejtësisë për kalime graduale mes ngjyrave/pragjeve.
+Hapësira numër – njësi dhe Hapësira mes shifrave rregullohen veçmas te Pamja.
+Shiriti RPM ka kufi manual; nuk zbulon automatikisht redline-in.
+
+Nuk ka survival, damage, boost ose ndryshime të fizikës së veturës.
+Cilësimet ruhen lokalisht. Eksporto stilin nga Stilet për kopje rezervë.
+Fontet Barlow Condensed shpërndahen me licencën SIL OFL te dosja fonts.
+
+Kodi dhe udhëzimet:
 https://github.com/p98hh2jtgb-lab/speedometer/tree/arena/c4a2d9cd-speedometer

@@ -22,3 +22,6 @@ SOFTWARE.
 
 Scope: the original APEX code, assets and documentation in this repository.
 The third-party reference archive "creatorpack v1.1.zip" is excluded.
+
+Bundled Barlow Condensed fonts are separately licensed under SIL Open Font License
+1.1; see ui/modules/apps/ApexSpeedometer/fonts/OFL.txt in the mod.

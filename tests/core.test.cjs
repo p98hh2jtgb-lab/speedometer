@@ -4,12 +4,12 @@ const hud = require('../mod/ui/modules/apps/ApexSpeedometer/app.js');
 
 test('default options survive sanitization without shared references', () => {
   const a = hud.sanitize(null); a.size = 12;
-  assert.equal(hud.defaults.size, 100);
+  assert.equal(hud.defaults.size, 108);
   assert.deepEqual(hud.sanitize(hud.defaults), hud.defaults);
 });
 test('reject unknown keys, malformed types, colors and enums', () => {
   const s = hud.sanitize({size: '200', color: 'url(evil)', locked: 'false', style: 'bad', surprise: 42});
-  assert.equal(s.size, 100); assert.equal(s.color, '#ffffff'); assert.equal(s.locked, true);
+  assert.equal(s.size, 108); assert.equal(s.color, '#ffffff'); assert.equal(s.locked, true);
   assert.equal(s.style, 'outline'); assert.equal(s.surprise, undefined);
   assert.deepEqual(hud.sanitize([]), hud.defaults);
 });
@@ -49,11 +49,39 @@ test('adaptive color exact endpoints and clamping', () => {
   assert.equal(hud.speedColor(100,s),s.midColor);
   assert.equal(hud.speedColor(200,s),s.highColor);
   assert.equal(hud.speedColor(900,s),s.highColor);
-  assert.equal(hud.speedColor(900,hud.defaults),hud.defaults.color);
+  assert.equal(hud.speedColor(900,{...hud.defaults,adaptiveColor:false}),hud.defaults.color);
 });
 test('all built-in looks contain valid settings', () => {
   for (const preset of Object.values(hud.presets)) {
     const s = hud.sanitize({...hud.defaults,...preset});
     for (const [key,value] of Object.entries(preset)) assert.equal(s[key],value);
   }
+});
+
+
+test('dynamic is the default and old source names migrate', () => {
+  assert.equal(hud.defaults.source, 'dynamic');
+  assert.equal(hud.sanitize({source:'auto'}).source, 'dynamic');
+  assert.equal(hud.sanitize({source:'ground'}).source, 'air');
+});
+test('locked wheels at 300 km/h keep actual travel speed', () => {
+  const data={wheel:0,wheelAt:100,air:300/3.6,airAt:100};
+  assert.equal(hud.selectedSpeed(data,'dynamic',100),300/3.6);
+  assert.equal(hud.selectedSpeed(data,'air',100),300/3.6);
+  assert.equal(hud.selectedSpeed(data,'wheel',100),0);
+});
+test('airborne, wheelspin and stationary vehicle use world motion, including true zero', () => {
+  assert.equal(hud.selectedSpeed({wheel:120,wheelAt:0,air:30,airAt:0},'dynamic',1),30);
+  assert.equal(hud.selectedSpeed({wheel:80,wheelAt:0,air:0,airAt:0},'dynamic',1),0);
+  assert.equal(hud.selectedSpeed({wheel:0,wheelAt:0,ground:60,groundAt:0},'dynamic',1),60);
+});
+test('dynamic fallback is labelled, strict Air never falls back to wheel', () => {
+  const data={wheel:55,wheelAt:0,air:20,airAt:-5000};
+  assert.deepEqual(hud.speedSample(data,'dynamic',1),{speed:55,source:'wheel-fallback'});
+  assert.equal(hud.selectedSpeed(data,'air',1),null);
+});
+test('new compact spacing settings are validated', () => {
+  assert.equal(hud.defaults.unitGap,6);
+  assert.equal(hud.sanitize({unitGap:999,digitSpacing:-999}).unitGap,32);
+  assert.equal(hud.sanitize({digitSpacing:-999}).digitSpacing,-8);
 });

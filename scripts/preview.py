@@ -9,7 +9,7 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
-    def do_GET(self):
+    def route(self):
         path = urlsplit(self.path).path
         if path == '/':
             self.path = '/preview/index.html'
@@ -17,8 +17,16 @@ class Handler(SimpleHTTPRequestHandler):
             self.path = '/mod' + self.path
         elif not path.startswith(('/preview/', '/mod/ui/', '/downloads/')):
             self.send_error(404)
-            return
-        super().do_GET()
+            return False
+        return True
+
+    def do_GET(self):
+        if self.route():
+            super().do_GET()
+
+    def do_HEAD(self):
+        if self.route():
+            super().do_HEAD()
 
     def list_directory(self, path):
         self.send_error(404)
