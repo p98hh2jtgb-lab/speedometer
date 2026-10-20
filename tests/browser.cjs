@@ -90,58 +90,69 @@ const {execFileSync} = require('node:child_process');
   await tab('style');const signatures=[];
   for(const style of ['clean','outline','race','neon','hyper','minimal','digital']){
    await page.locator('[data-style="'+style+'"]').click();await page.evaluate(()=>document.fonts.ready);
-   signatures.push(await page.locator('.as-number').evaluate(el=>{const s=getComputedStyle(el);return [s.fontFamily,s.fontSize,s.fontStyle,s.fontWeight,s.textShadow,getComputedStyle(el.closest('.as-hud').querySelector('.as-flair')).display].join('|');}));
+   signatures.push(await page.locator('.as-number').evaluate(el=>{const s=getComputedStyle(el);return [s.fontFamily,s.fontSize,s.fontStyle,s.fontWeight,s.textShadow,s.webkitTextStrokeWidth,getComputedStyle(el.closest('.as-hud')).backgroundImage].join('|');}));
    assert.ok(await page.locator('.as-hud').evaluate((el,s)=>el.classList.contains('as-style-'+s),style));
   }
   assert.equal(new Set(signatures).size,7);
  });
- await check('number and unit weight, italic and sizes are independent',async()=>{
-  await page.locator('[data-style=outline]').click();await set('size',100);await set('unitSize',25);await set('numberWeight',400);await set('unitWeight',900);await page.locator('[data-key=unitItalic]').uncheck();
-  assert.equal(await page.locator('.as-number').evaluate(el=>getComputedStyle(el).fontWeight),'400');
-  assert.equal(await page.locator('.as-unit').evaluate(el=>getComputedStyle(el).fontWeight),'900');
-  assert.equal(await page.locator('.as-unit').evaluate(el=>getComputedStyle(el).fontStyle),'normal');
-  await choose('unitPosition','side');await set('unitGap',2);await set('digitSpacing',-2);assert.equal(await page.locator('.as-reading').evaluate(el=>getComputedStyle(el).gap),'2px');
+ await check('shared typography: number and unit stay inline in every style',async()=>{
+  for(const style of ['clean','outline','race','neon','hyper','minimal','digital']){
+   await page.locator('[data-style="'+style+'"]').click();
+   const n=await page.locator('.as-number').boundingBox(),u=await page.locator('.as-unit').boundingBox();
+   assert.ok(u.x>=n.x+n.width-1&&u.y<n.y+n.height,'unit must stay next to number: '+style);
+   assert.equal(await color('.as-unit'),await color());
+   const typography=await page.locator('.as-reading').evaluate(el=>{const a=getComputedStyle(el.firstChild),b=getComputedStyle(el.lastChild);return [a.fontFamily===b.fontFamily,a.fontWeight===b.fontWeight,a.fontStyle===b.fontStyle];});assert.deepEqual(typography,[true,true,true]);
+  }
+  await page.locator('[data-style=clean]').click();await set('size',100);await set('numberWeight',400);
+  assert.equal(await page.locator('.as-number').evaluate(el=>getComputedStyle(el).fontSize),'100px');
+  assert.equal(await page.locator('.as-unit').evaluate(el=>getComputedStyle(el).fontSize),'25px');
+  assert.equal(await page.locator('.as-unit').evaluate(el=>getComputedStyle(el).fontWeight),'400');
+  assert.equal(await page.locator('[data-key=unitSize],[data-key=unitWeight],[data-set=unitPosition]').count(),0);
  });
- await check('clicking a toggle label changes its checkbox exactly once',async()=>{
-  const label=page.locator('.as-toggle-row').filter({has:page.locator('[data-key=unitItalic]')});
-  await label.locator('b').click();assert.equal(await page.locator('[data-key=unitItalic]').isChecked(),true);
-  await label.locator('b').click();assert.equal(await page.locator('[data-key=unitItalic]').isChecked(),false);
+ await check('clicking shared italic label toggles both exactly once',async()=>{
+  const label=page.locator('.as-toggle-row').filter({has:page.locator('[data-key=italic]')});
+  await label.locator('b').click();assert.equal(await page.locator('[data-key=italic]').isChecked(),true);
+  assert.equal(await page.locator('.as-unit').evaluate(el=>getComputedStyle(el).fontStyle),'italic');
+  await label.locator('b').click();assert.equal(await page.locator('[data-key=italic]').isChecked(),false);
  });
  await check('native color pickers not required: swatch click changes rendered color',async()=>{
   await tab('color');await page.addStyleTag({content:'.as-number,.as-unit{color:white!important;-webkit-text-fill-color:white!important}'});
-  await page.locator('[data-color-key=color][data-paint="#27ec94"]').click();
-  assert.equal(await color(),'rgb(39, 236, 148)');assert.equal(await color('.as-unit'),'rgb(39, 236, 148)');
+  await page.locator('[data-color-key=color][data-paint="#87d8ff"]').click();
+  assert.equal(await color(),'rgb(135, 216, 255)');assert.equal(await color('.as-unit'),'rgb(135, 216, 255)');
   assert.equal(await page.locator('[data-set=adaptiveColor][data-value=false]').getAttribute('aria-pressed'),'true');
  });
  await check('HEX validates, Apply explicitly commits, no form submission',async()=>{
   const input=page.locator('.as-hex[data-key=color]');await input.fill('#12');assert.equal(await input.getAttribute('aria-invalid'),'true');
-  assert.equal(await color(),'rgb(39, 236, 148)');await input.fill('#aabbcc');await page.locator('[data-apply-color=color]').click();
+  assert.equal(await color(),'rgb(135, 216, 255)');await input.fill('#aabbcc');await page.locator('[data-apply-color=color]').click();
   assert.equal(await color(),'rgb(170, 187, 204)');assert.equal(await page.evaluate(()=>window.submissions),0);
  });
- await check('unit color changes independently of number and follows when requested',async()=>{
-  await page.locator('[data-color-key=unitColor][data-paint="#4169ff"]').click();assert.equal(await color('.as-unit'),'rgb(65, 105, 255)');assert.equal(await color(),'rgb(170, 187, 204)');
-  assert.equal(await page.locator('[data-key=unitFollowsColor]').isChecked(),false);await page.locator('[data-key=unitFollowsColor]').check();assert.equal(await color('.as-unit'),await color());
+ await check('one color control paints the whole reading; no telemetry or unit controls',async()=>{
+  assert.equal(await page.locator('.as-unit').evaluate(el=>getComputedStyle(el).color),'rgb(170, 187, 204)');
+  assert.equal(await page.locator('.as-gear,.as-rpm,[data-key=unitColor],[data-key=unitFollowsColor]').count(),0);
+  await tab('behavior');assert.equal(await page.locator('[data-key=showGear],[data-key=showRpm],[data-key=rpmMax]').count(),0);
  });
- await check('full 0–100 km/h rainbow renders at each physical threshold',async()=>{
-  await page.locator('[data-action=reset-spectrum]').click();await tab('behavior');await set('smoothing',0);
-  for(const [speed,rgb] of [[0,'255, 255, 255'],[5,'0, 229, 255'],[20,'65, 105, 255'],[40,'168, 85, 247'],[60,'255, 66, 200'],[80,'255, 173, 50'],[100,'255, 48, 63'],[180,'255, 48, 63']]){
-   await demo(speed);await waitNumber(speed);assert.equal(await color(),'rgb('+rgb+')');
+ await check('default fixed white stays white from 0 to 300, including low speed',async()=>{
+  await tab('style');await page.locator('[data-style=clean]').click();await tab('behavior');await set('smoothing',0);
+  for(const speed of [0,5,20,40,60,80,100,180,300]){await demo(speed);await waitNumber(speed);assert.equal(await color(),'rgb(255, 255, 255)');assert.equal(await color('.as-unit'),await color());}
+ });
+ await check('optional warm color is explicit, restrained and shared',async()=>{
+  await tab('color');await choose('adaptiveColor',true);
+  assert.equal(await page.locator('[data-set=palette],[data-stop]').count(),0);
+  await tab('behavior');
+  for(const [speed,rgb] of [[0,'255, 255, 255'],[5,'255, 255, 255'],[40,'255, 255, 255'],[60,'255, 255, 255'],[100,'255, 209, 102'],[140,'255, 69, 58'],[300,'255, 69, 58']]){
+   await demo(speed);await waitNumber(speed);assert.equal(await color(),'rgb('+rgb+')');assert.equal(await color('.as-unit'),await color());
   }
  });
- await check('changing units cannot change the physical color threshold',async()=>{
-  await demo(40);await waitNumber(40);const old=await color();await choose('units','mph');await waitNumber(25);assert.equal(await color(),old);
-  await demo(100);await waitNumber(62);assert.equal(await color(),'rgb(255, 48, 63)');await choose('units','kmh');await waitNumber(100);
- });
- await check('color stops are editable and resettable',async()=>{
-  await tab('color');await page.locator('[data-stop=stop100]').click();await page.locator('[data-color-key=stop100][data-paint="#00e5ff"]').click();
-  assert.equal(await color(),'rgb(0, 229, 255)');await page.locator('[data-action=reset-spectrum]').click();assert.equal(await color(),'rgb(255, 48, 63)');
+ await check('unit conversion preserves physical warm threshold',async()=>{
+  await demo(100);await waitNumber(100);const old=await color();await choose('units','mph');await waitNumber(62);assert.equal(await color(),old);assert.equal(await color('.as-unit'),old);
+  await choose('units','kmh');await waitNumber(100);await tab('behavior');
  });
  await check('decimals convert using real button clicks',async()=>{
   await tab('behavior');await choose('units','mph');await choose('decimals',2);await waitNumber('62.14');await choose('decimals',1);await waitNumber('62.1');await choose('units','kmh');await waitNumber('100.0');await choose('decimals',0);
  });
  await check('Hyper scales with speed and can remain on screen at extremes',async()=>{
   await tab('style');await page.locator('[data-style=hyper]').click();await tab('behavior');await set('smoothing',0);await demo(200);await waitNumber(200);
-  assert.ok(Number(await page.locator('.as-hud').evaluate(el=>el.style.getPropertyValue('--as-reactive')))>=1.09);
+  assert.ok(Number(await page.locator('.as-hud').evaluate(el=>el.style.getPropertyValue('--as-reactive')))>=1.05);
   await tab('layout');await set('x',97);await set('y',95);await bounds();await set('x',3);await set('y',5);await bounds();await set('x',50);await set('y',82);
  });
  await check('tiny screen clamps panel and the number; gear and X are usable',async()=>{
@@ -156,8 +167,14 @@ const {execFileSync} = require('node:child_process');
  await check('JSON export and valid import keep source, units and compact bounds',async()=>{
   const wait=page.waitForEvent('download');await page.locator('[data-action=export]').click();const download=await wait;
   const file=JSON.parse(fs.readFileSync(await download.path(),'utf8'));assert.equal(file.schema,'apex-speedometer/v1');assert.equal(file.settings.units,'kmh');
-  await page.locator('.as-file').setInputFiles({name:'look.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({schema:'apex-speedometer/v1',settings:{size:9999,style:'neon',source:'ground',panelWidth:900,units:'mph'}}))});
+  await page.locator('.as-file').setInputFiles({name:'look.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({schema:'apex-speedometer/v1',settings:{size:9999,style:'neon',source:'ground',panelWidth:900,units:'mph',showGear:true,showRpm:true,unitPosition:'below',unitColor:'#ff42c8',unitFollowsColor:false,unitSize:70}}))});
   await page.waitForFunction(()=>document.querySelector('.as-save-state').textContent==='Stili u importua');await tab('style');assert.equal(await page.locator('[data-key=size]').inputValue(),'220');await tab('behavior');assert.equal(await page.locator('[data-set=source][data-value=air]').getAttribute('aria-pressed'),'true');
+  await demo(300);await choose('decimals',2);await waitNumber('186.41');
+  await page.setViewportSize({width:390,height:740});await bounds();
+  const n=await page.locator('.as-number').boundingBox(),u=await page.locator('.as-unit').boundingBox();
+  assert.ok(u.x>=n.x+n.width-1&&u.y<n.y+n.height);assert.equal(await color('.as-unit'),await color());
+  assert.equal(await page.locator('.as-gear,.as-rpm').count(),0);await page.setViewportSize({width:1440,height:900});
+
  });
  await check('malformed JSON import reports an Albanian error',async()=>{
   await tab('presets');await page.locator('.as-file').setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from('not json')});await page.waitForFunction(()=>document.querySelector('.as-save-state').textContent==='Skedar JSON i pavlefshëm për APEX');
@@ -169,12 +186,28 @@ const {execFileSync} = require('node:child_process');
   await tab('behavior');await page.locator('[data-key=hideStopped]').check();await demo(0);await close();await page.waitForFunction(()=>document.querySelector('.as-hud').classList.contains('as-stopped'));await open();
   await page.locator('[data-key=enabled]').uncheck();await close();assert.equal(await page.locator('.as-hud').isVisible(),false);await open();assert.equal(await page.locator('.as-hud').isVisible(),true);
  });
- await check('v0.2 migration makes existing UI smaller and installs spectrum once',async()=>{
-  await page.evaluate(()=>{window.previewApp.destroy();localStorage.setItem('apex.speedometer.v1.revision','2');localStorage.setItem('apex.speedometer.v1',JSON.stringify({size:164,unitSize:40,source:'dynamic',units:'kmh',color:'#123456'}));window.liveApp=ApexSpeedometer.mount(document.querySelector('.apex-speedometer'));});await open();
-  assert.equal(await page.locator('[data-key=size]').inputValue(),'88');await tab('color');assert.equal(await page.locator('[data-set=palette][data-value=spectrum]').getAttribute('aria-pressed'),'true');await tab('behavior');await set('smoothing',0);
+ await check('v0.2 and v0.3 migration remove old heavy/pink/separate unit preferences',async()=>{
+  await page.evaluate(()=>window.previewApp.destroy());
+  for(const revision of [2,3]){
+   await page.evaluate(revision=>{
+    if(window.liveApp)window.liveApp.destroy();
+    localStorage.setItem('apex.speedometer.v1.revision',String(revision));
+    localStorage.setItem('apex.speedometer.v1',JSON.stringify({size:164,unitSize:40,numberWeight:900,italic:true,style:'race',source:'dynamic',units:'kmh',color:'#ff42c8',adaptiveColor:true,palette:'spectrum',unitPosition:'below',unitFollowsColor:false,unitColor:'#ff42c8',showGear:true,showRpm:true,x:28,y:77,panelX:100,panelY:50}));
+    window.liveApp=ApexSpeedometer.mount(document.querySelector('.apex-speedometer'));
+   },revision);await open();
+   assert.equal(await page.locator('[data-key=size]').inputValue(),'88');assert.equal(await page.locator('[data-key=numberWeight]').inputValue(),'600');
+   assert.equal(await color(),'rgb(255, 255, 255)');assert.equal(await color('.as-unit'),await color());
+   assert.equal(await page.locator('.as-gear,.as-rpm').count(),0);
+   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('apex.speedometer.v1')));
+   assert.equal(saved.style,'clean');assert.equal(saved.adaptiveColor,false);assert.equal(saved.x,28);assert.equal(saved.y,77);assert.equal(saved.panelX,100);assert.equal(saved.panelY,50);assert.equal(saved.unitPosition,undefined);assert.equal(saved.showGear,undefined);
+   assert.equal(await page.evaluate(()=>localStorage.getItem('apex.speedometer.v1.revision')),'4');
+  }
+  await tab('color');await page.locator('[data-color-key=color][data-paint="#4169ff"]').click();await page.waitForTimeout(220);
+  await page.evaluate(()=>{window.liveApp.destroy();window.liveApp=ApexSpeedometer.mount(document.querySelector('.apex-speedometer'));});await open();assert.equal(await color(),'rgb(65, 105, 255)');
+  await tab('color');await page.locator('[data-color-key=color][data-paint="#ffffff"]').click();await tab('behavior');await set('smoothing',0);
  });
  await check('300 km/h with wheels locked is correct with no Lua bridge',async()=>{
-  await feed({wheelspeed:0,airspeed:300/3.6,rpm:4000,gear:'5'});await waitNumber(300);assert.equal(await page.locator('.as-hud').getAttribute('data-speed-source'),'air');
+  await feed({wheelspeed:0,airspeed:300/3.6,rpm:4000,gear:'5'});await waitNumber(300);assert.equal(await page.locator('.as-gear,.as-rpm').count(),0);assert.equal(await page.locator('.as-hud').getAttribute('data-speed-source'),'air');
   await choose('source','air');await waitNumber(300);await choose('units','mph');await waitNumber(186);await choose('units','kmh');await waitNumber(300);
  });
  await check('dynamic handles wheelspin, real zero and camelCase streams',async()=>{
@@ -197,7 +230,7 @@ const {execFileSync} = require('node:child_process');
    window.StreamsManager={add:x=>calls.push(['add',x]),remove:x=>calls.push(['remove',x])};window.bngApi={engineLua:x=>calls.push(['lua',x])};(0,eval)(source);
    const scope={$on:(name,fn)=>{handlers[name]=fn;return()=>{delete handlers[name];};}};
    const css=document.createElement('link');css.id='apex-speedometer-css';css.rel='stylesheet';css.href='/ui/modules/apps/ApexSpeedometer/app.css?v=0.2.1';document.head.appendChild(css);
-   window.adapter.link(scope,[document.querySelector('.apex-speedometer')]);if(!css.href.endsWith('?v=0.3.0'))throw Error('stale CSS');
+   window.adapter.link(scope,[document.querySelector('.apex-speedometer')]);if(!css.href.endsWith('?v=0.3.1'))throw Error('stale CSS');
    if(!handlers.streamsUpdate||!handlers['apexSpeedometer.ground']||handlers['apexSpeedometer.toggleSettings'])throw Error('wrong subscriptions');
    document.querySelector('.as-settings-button').click();if(document.querySelector('.as-panel').hidden)throw Error('gear failed');document.querySelector('.as-close').click();if(!document.querySelector('.as-panel').hidden)throw Error('X failed');
    handlers['$destroy']();if(Object.keys(handlers).some(k=>k!=='$destroy'))throw Error('listener leaked');if(document.querySelector('.as-settings-button'))throw Error('DOM leaked');if(!calls.some(x=>x[0]==='remove'))throw Error('stream leaked');delete window.angular;

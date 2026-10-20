@@ -3,43 +3,37 @@
   'use strict';
   var KEY = 'apex.speedometer.v1';
   var DEFAULTS = {
-    enabled: true, style: 'race', size: 88, unitSize: 21, unitGap: 4, digitSpacing: -1,
-    numberWeight: 900, unitWeight: 700, unitItalic: true, unitSpacing: 0,
+    enabled: true, style: 'clean', size: 88, digitSpacing: -1, numberWeight: 600,
     x: 50, y: 82, units: 'kmh', source: 'dynamic', decimals: 0,
-    color: '#ffffff', unitColor: '#ffffff', unitFollowsColor: true, outlineColor: '#11131b',
-    outline: 1, shadow: 55, opacity: 100, background: false, italic: true,
-    unitPosition: 'side', adaptiveColor: true, palette: 'spectrum', midSpeed: 50, highSpeed: 100,
-    midColor: '#a855f7', highColor: '#ff303f', stop5: '#00e5ff', stop20: '#4169ff',
-    stop40: '#a855f7', stop60: '#ff42c8', stop80: '#ffad32', stop100: '#ff303f',
+    color: '#ffffff', outlineColor: '#11131b', outline: 0, shadow: 55,
+    opacity: 100, background: false, italic: false, adaptiveColor: false,
     smoothing: 100, glow: 0, reactiveScale: 0, hideStopped: false, showPeak: false,
-    showGear: false, showRpm: false, rpmMax: 8000, warning: false, warningSpeed: 130,
-    locked: true, panelX: 0, panelY: 0, panelWidth: 340, panelHeight: 560, panelCollapsed: false
+    warning: false, warningSpeed: 130, locked: true,
+    panelX: 0, panelY: 0, panelWidth: 340, panelHeight: 560, panelCollapsed: false
   };
   var ENUMS = {style: ['clean', 'outline', 'race', 'neon', 'hyper', 'minimal', 'digital'],
-    units: ['kmh', 'mph'], source: ['wheel', 'air', 'dynamic'], palette: ['spectrum', 'custom'],
-    unitPosition: ['side', 'below', 'hidden']};
-  var LIMITS = {size: [28, 220], unitSize: [8, 70], unitGap: [0, 32], digitSpacing: [-8, 8],
-    numberWeight: [400, 900], unitWeight: [400, 900], unitSpacing: [-2, 6], decimals: [0, 2],
+    units: ['kmh', 'mph'], source: ['wheel', 'air', 'dynamic']};
+  var LIMITS = {size: [28, 220], digitSpacing: [-8, 8], numberWeight: [400, 700], decimals: [0, 2],
     x: [3, 97], y: [5, 95], outline: [0, 5], shadow: [0, 100], opacity: [15, 100],
-    midSpeed: [1, 600], highSpeed: [2, 700], smoothing: [0, 500], glow: [0, 40],
-    reactiveScale: [0, 20], rpmMax: [1000, 20000], warningSpeed: [1, 700],
+    smoothing: [0, 500], glow: [0, 40], reactiveScale: [0, 20], warningSpeed: [1, 700],
     panelX: [0, 100], panelY: [0, 100], panelWidth: [280, 480], panelHeight: [300, 760]};
   var STYLE_NAMES = {clean:'Clean', outline:'Kontur', race:'Racing', neon:'Neon', hyper:'Hyper', minimal:'Minimal', digital:'Digjital'};
+  // Every look keeps the number and unit in one inline, shared-color instrument.
   var LOOKS = {
-    clean: {style:'clean', size:80, unitSize:20, numberWeight:600, unitWeight:600, italic:false, unitItalic:false,
-      outline:0, glow:0, background:false, unitPosition:'side', adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
-    outline: {style:'outline', size:88, unitSize:22, numberWeight:900, unitWeight:900, italic:true, unitItalic:true,
-      outline:2, glow:0, background:false, unitPosition:'side', adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
-    race: {style:'race', size:88, unitSize:21, numberWeight:900, unitWeight:900, italic:true, unitItalic:true,
-      outline:1, glow:0, background:false, unitPosition:'side', adaptiveColor:true, palette:'spectrum', reactiveScale:0, digitSpacing:-2},
-    neon: {style:'neon', size:86, unitSize:18, numberWeight:600, unitWeight:600, italic:false, unitItalic:false,
-      outline:0, glow:22, background:false, unitPosition:'below', adaptiveColor:true, palette:'spectrum', reactiveScale:0, digitSpacing:2},
-    hyper: {style:'hyper', size:96, unitSize:22, numberWeight:900, unitWeight:900, italic:true, unitItalic:true,
-      outline:0, glow:8, background:true, unitPosition:'side', adaptiveColor:true, palette:'spectrum', reactiveScale:10, digitSpacing:-3},
-    minimal: {style:'minimal', size:64, unitSize:13, numberWeight:400, unitWeight:400, italic:false, unitItalic:false,
-      outline:0, glow:0, background:false, unitPosition:'below', adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:0},
-    digital: {style:'digital', size:78, unitSize:17, numberWeight:600, unitWeight:600, italic:false, unitItalic:false,
-      outline:0, glow:0, background:true, unitPosition:'side', adaptiveColor:false, color:'#92dfff', reactiveScale:0, digitSpacing:0}
+    clean: {style:'clean', size:88, numberWeight:600, italic:false, outline:0, glow:0,
+      background:false, adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
+    outline: {style:'outline', size:88, numberWeight:600, italic:true, outline:2, glow:0,
+      background:false, adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
+    race: {style:'race', size:88, numberWeight:700, italic:true, outline:1, glow:0,
+      background:false, adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:-1},
+    neon: {style:'neon', size:86, numberWeight:600, italic:false, outline:0, glow:14,
+      background:false, adaptiveColor:false, color:'#87d8ff', reactiveScale:0, digitSpacing:-1},
+    hyper: {style:'hyper', size:90, numberWeight:700, italic:true, outline:0, glow:0,
+      background:true, adaptiveColor:false, color:'#ffffff', reactiveScale:6, digitSpacing:-1},
+    minimal: {style:'minimal', size:64, numberWeight:400, italic:false, outline:0, glow:0,
+      background:false, adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:0},
+    digital: {style:'digital', size:78, numberWeight:600, italic:false, outline:0, glow:0,
+      background:true, adaptiveColor:false, color:'#ffffff', reactiveScale:0, digitSpacing:0}
   };
   function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
   function finite(n) { return typeof n === 'number' && Number.isFinite(n); }
@@ -56,7 +50,6 @@
       else if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) result[key] = v;
     });
     result.decimals = Math.round(result.decimals);
-    result.highSpeed = Math.max(result.midSpeed + 1, result.highSpeed);
     return result;
   }
   function convert(ms, units) { return Math.abs(finite(ms) ? ms : 0) * (units === 'mph' ? 2.2369362921 : 3.6); }
@@ -87,18 +80,10 @@
   }
   function speedColor(speedKmh, s) {
     if (!s.adaptiveColor) return s.color;
-    if (s.palette === 'custom') {
-      return speedKmh <= s.midSpeed ? mix(s.color, s.midColor, speedKmh / s.midSpeed) :
-        mix(s.midColor, s.highColor, (speedKmh - s.midSpeed) / (s.highSpeed - s.midSpeed));
-    }
-    // Physical km/h, independent of the display unit. Exactly white at rest, red at/above 100.
-    var stops = [[0, '#ffffff'], [5, s.stop5], [20, s.stop20], [40, s.stop40],
-      [60, s.stop60], [80, s.stop80], [100, s.stop100]];
-    for (var i = 1; i < stops.length; i++) {
-      if (speedKmh <= stops[i][0]) return mix(stops[i-1][1], stops[i][1],
-        (speedKmh - stops[i-1][0]) / (stops[i][0] - stops[i-1][0]));
-    }
-    return s.stop100;
+    // Optional restrained warm ramp, never a rainbow. Fixed white is the default.
+    if (speedKmh <= 60) return '#ffffff';
+    if (speedKmh <= 100) return mix('#ffffff','#ffd166',(speedKmh-60)/40);
+    return mix('#ffd166','#ff453a',(speedKmh-100)/40);
   }
   function formatSpeed(speed, decimals) { return Math.max(0,finite(speed) ? speed : 0).toFixed(Math.round(clamp(finite(decimals) ? decimals : 0,0,2))); }
   function panelCorner(width, height, pw, ph, rect) {
@@ -119,40 +104,40 @@
   global.ApexSpeedometer = API;
   API.mount = function (root, options) {
     options = options || {};
-    var destroyed = false, frame, dragging = null, cleanups = [], pane = 'style', saveTimer, panelDrag = null, selectedStop = 'stop5';
+    var destroyed = false, frame, dragging = null, cleanups = [], pane = 'style', saveTimer, panelDrag = null;
     var storage = options.storage || global.localStorage;
     function read(key, fallback) { try { return JSON.parse(storage.getItem(key)) || fallback; } catch (_) { return fallback; } }
     var settings = sanitize(read(KEY, DEFAULTS));
     var revision = read(KEY + '.revision', 0);
-    if (revision < 3) {
+    if (revision < 4) {
       if (revision < 2) settings.source = 'dynamic';
-      settings.size = Math.min(settings.size, 88); settings.unitSize = Math.min(settings.unitSize, 21);
-      settings.adaptiveColor = true; settings.palette = 'spectrum';
-      settings.panelWidth = 340; settings.panelHeight = 560; settings.panelX = 0; settings.panelY = 0;
-      try { storage.setItem(KEY + '.revision', '3'); storage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
+      settings.style = 'clean'; settings.numberWeight = 600; settings.italic = false;
+      settings.size = Math.min(settings.size,88); settings.digitSpacing = -1;
+      settings.color = '#ffffff'; settings.adaptiveColor = false;
+      settings.outline = 0; settings.background = false; settings.glow = 0; settings.reactiveScale = 0;
+      try { storage.setItem(KEY + '.revision','4'); storage.setItem(KEY,JSON.stringify(settings)); } catch (_) {}
     }
     var custom = read(KEY + '.presets', {});
     if (!custom || typeof custom !== 'object' || Array.isArray(custom)) custom = {};
-    var data = {wheel: null, air: null, ground: null, wheelAt: -Infinity, airAt: -Infinity, groundAt: -Infinity, rpm: 0, gear: 'N', telemetryAt: -Infinity};
+    var data = {wheel: null, air: null, ground: null, wheelAt: -Infinity, airAt: -Infinity, groundAt: -Infinity};
     var displayed = 0, peakMs = 0, previous = performance.now(), demoMs = 65 / 3.6, lastHasSample = false;
     root.innerHTML = '<div class="as-hud" role="group" aria-label="Shpejtësimatësi" tabindex="0">' +
-      '<div class="as-rpm" aria-hidden="true"><i></i></div><div class="as-reading"><span class="as-gear"></span>' +
+      '<div class="as-reading">' +
       '<span class="as-number" title="Kliko për km/h ↔ mph">—</span><span class="as-unit">KM/H</span></div>' +
-      '<div class="as-flair" aria-hidden="true"><i></i><i></i><i></i></div><div class="as-meta"></div><div class="as-edit-hint">ZHVENDOSE NË EKRAN · ⚙ PËR CILËSIMET</div></div>' +
+      '<div class="as-meta"></div><div class="as-edit-hint">ZHVENDOSE NË EKRAN · ⚙ PËR CILËSIMET</div></div>' +
       '<button class="as-settings-button" type="button" title="Hap cilësimet" aria-label="Hap cilësimet" aria-expanded="false">' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 3h5l.5 2.5 2 1.2 2.5-.8 2.5 4.3-2 1.8v2l2 1.8-2.5 4.3-2.5-.8-2 1.2-.5 2.5h-5L9 20.5l-2-1.2-2.5.8L2 15.8 4 14v-2l-2-1.8L4.5 6 7 6.8l2-1.2z" transform="translate(0 -1) scale(1 .95)"/><circle cx="12" cy="11.5" r="3"/></svg></button>' +
       '<section id="apex-settings-panel" class="as-panel" aria-label="Cilësimet e shpejtësisë" hidden>' +
       '<header class="as-header" tabindex="0" title="Tërhiqe panelin me maus" aria-label="Zhvendos panelin e cilësimeve"><div class="as-brandmark">A</div><div><h1>APEX <span>SHPEJTËSIMATËSI</span></h1>' +
       '<p>↔ Tërhiqe panelin ku të duash</p></div><button class="as-collapse" type="button" title="Mblidh / zgjero panelin" aria-label="Mblidh / zgjero panelin">−</button><button class="as-close" title="Mbyll cilësimet" aria-label="Mbyll cilësimet">×</button></header>' +
-      '<div class="as-status"><span></span>' + (options.demo ? 'PARAPAMJE E SIMULUAR · JO TË DHËNA NGA LOJA' : 'BEAMNG HUD · 0.3.0 / VERSION PROVUES') + '</div>' +
+      '<div class="as-status"><span></span>' + (options.demo ? 'PARAPAMJE E SIMULUAR · JO TË DHËNA NGA LOJA' : 'BEAMNG HUD · 0.3.1 / VERSION PROVUES') + '</div>' +
       '<div class="as-source-status" aria-live="polite"></div><nav class="as-nav" aria-label="Kategoritë e cilësimeve"></nav><div class="as-content"></div>' +
       '<footer class="as-footer"><button type="button" data-action="panel-away" class="as-away" title="Largo panelin nga numri">↔ Largo</button><span class="as-save-state">U ruajt në këtë pajisje</span><button class="as-done">Mbyll ↗</button></footer></section>';
     root.querySelectorAll('button').forEach(function (button) { button.type = 'button'; });
     var hud = root.querySelector('.as-hud'), panel = root.querySelector('.as-panel');
     var content = root.querySelector('.as-content'), number = root.querySelector('.as-number');
     var unit = root.querySelector('.as-unit'), meta = root.querySelector('.as-meta');
-    var rpm = root.querySelector('.as-rpm'), gear = root.querySelector('.as-gear');
-    function on(el, event, fn, opts) { el.addEventListener(event, fn, opts); cleanups.push(function () { el.removeEventListener(event, fn, opts); }); }
+        function on(el, event, fn, opts) { el.addEventListener(event, fn, opts); cleanups.push(function () { el.removeEventListener(event, fn, opts); }); }
     function notify(message) { root.querySelector('.as-save-state').textContent = message; }
     function save() {
       clearTimeout(saveTimer);
@@ -167,11 +152,10 @@
       else { dragging = null; hud.classList.remove('as-dragging'); apply(); }
     }
     function paint(speedKmh) {
-      var value = speedColor(speedKmh, settings), unitValue = settings.unitFollowsColor ? value : settings.unitColor;
-      hud.style.setProperty('--as-color', value); hud.style.setProperty('--as-unit-color', unitValue);
-      [number, gear, unit].forEach(function (el) {
-        var c = el === unit ? unitValue : value;
-        el.style.setProperty('color', c, 'important'); el.style.setProperty('-webkit-text-fill-color', c, 'important');
+      var value = speedColor(speedKmh, settings);
+      hud.style.setProperty('--as-color', value);
+      [number, unit].forEach(function (el) {
+        el.style.setProperty('color', value, 'important'); el.style.setProperty('-webkit-text-fill-color', value, 'important');
       });
     }
     function updateReading() {
@@ -185,34 +169,24 @@
       settings = sanitize(next);
       if (oldUnits !== settings.units) displayed *= settings.units === 'mph' ? 2.2369362921/3.6 : 3.6/2.2369362921;
       if (key === 'color') settings.adaptiveColor = false;
-      if (key === 'unitColor') settings.unitFollowsColor = false;
-      if (key === 'palette') settings.adaptiveColor = true;
-      if (key === 'midColor' || key === 'highColor') { settings.adaptiveColor = true; settings.palette = 'custom'; }
-      if (/^stop[0-9]+$/.test(key)) { settings.adaptiveColor = true; settings.palette = 'spectrum'; }
       content.querySelectorAll('input[type="checkbox"][data-key]').forEach(function (input) { input.checked = settings[input.dataset.key]; });
       content.querySelectorAll('[data-set]').forEach(function (button) { button.setAttribute('aria-pressed',String(settings[button.dataset.set]) === button.dataset.value); });
       apply(); scheduleSave();
     }
     function apply() {
       hud.hidden = !settings.enabled && panel.hidden;
-      hud.className = 'as-hud as-style-' + settings.style + (settings.italic ? ' as-italic' : '') + (settings.unitItalic ? ' as-unit-italic' : '') +
+      hud.className = 'as-hud as-style-' + settings.style + (settings.italic ? ' as-italic' : '') +
         (settings.background ? ' as-backed' : '') + (!settings.locked && !panel.hidden ? ' as-editing' : '');
       hud.style.setProperty('--as-size', settings.size + 'px');
-      hud.style.setProperty('--as-unit-size', settings.unitSize + 'px');
-      hud.style.setProperty('--as-unit-gap', settings.unitGap + 'px');
       hud.style.setProperty('--as-digit-spacing', settings.digitSpacing + 'px');
       hud.style.setProperty('--as-number-weight', settings.numberWeight);
-      hud.style.setProperty('--as-unit-weight', settings.unitWeight);
-      hud.style.setProperty('--as-unit-spacing', settings.unitSpacing + 'px');
       hud.style.setProperty('--as-glow', settings.glow + 'px');
       hud.style.setProperty('--as-outline', settings.outline + 'px');
       hud.style.setProperty('--as-outline-color', settings.outlineColor);
       hud.style.setProperty('--as-shadow', settings.shadow / 100);
       hud.style.setProperty('--as-opacity', settings.opacity / 100);
       hud.style.left = settings.x + '%'; hud.style.top = settings.y + '%';
-      hud.dataset.unitPosition = settings.unitPosition;
       unit.textContent = settings.units === 'mph' ? 'mph' : 'km/h';
-      rpm.hidden = !settings.showRpm; gear.hidden = !settings.showGear;
       updateReading(); fit(); positionPanel();
     }
     function fit() {
@@ -245,7 +219,7 @@
       }).join('') + '</div>', help);
     }
     function swatches(key) {
-      return '<div class="as-swatches" aria-label="Paleta ' + key + '">' + ['#ffffff','#171c25','#ff303f','#ffad32','#ffe54a','#27ec94','#00e5ff','#4169ff','#a855f7','#ff42c8'].map(function (value) {
+      return '<div class="as-swatches" aria-label="Paleta ' + key + '">' + ['#ffffff','#171c25','#87d8ff','#4169ff','#ffd166','#ff453a'].map(function (value) {
         return '<button type="button" data-paint="' + value + '" data-color-key="' + key + '" style="--swatch:' + value + '" title="' + value + '" aria-label="' + key + ' ' + value + '" aria-pressed="' + (settings[key] === value) + '"></button>';
       }).join('') + '</div>';
     }
@@ -263,13 +237,10 @@
         html = '<div class="as-styles">' + ENUMS.style.map(function (name) {
           return '<button type="button" data-style="' + name + '" aria-pressed="' + (settings.style === name) + '" class="as-style-card"><span class="as-sample-' + name + '">65<small> km/h</small></span><b>' + STYLE_NAMES[name] + '</b></button>';
         }).join('') + '</div>';
-        html += '<h3 class="as-group-title">NUMRI</h3><div class="as-two-col">' + range('size', 'Madhësia', 28, 220, ' px') + range('numberWeight', 'Trashësia', 400, 900, '') +
+        html += '<h3 class="as-group-title">SPEEDOMETRI · NUMRI + NJËSIA</h3><div class="as-two-col">' + range('size', 'Madhësia', 28, 220, ' px') + range('numberWeight', 'Trashësia', 400, 700, '') +
           range('digitSpacing', 'Hapësira e shifrave', -8, 8, ' px') + toggle('italic', 'I pjerrët') + '</div>';
         html += select('units', 'Njësia', [['kmh','km/h'],['mph','mph']]);
-        html += '<h3 class="as-group-title">KM/H / MPH</h3><div class="as-two-col">' + range('unitSize','Madhësia e njësisë',8,70,' px') +
-          range('unitWeight','Trashësia',400,900,'') + range('unitGap','Largësia nga numri',0,32,' px') + toggle('unitItalic','Njësia e pjerrët') + '</div>';
-        html += select('unitPosition','Pozicioni i njësisë',[['side','Anash'],['below','Poshtë'],['hidden','Fshehur']]);
-        html += range('unitSpacing','Hapësira e shkronjave',-2,6,' px');
+        html += '<p class="as-note">Numri dhe km/h janë bashkë: një rresht, e njëjta ngjyrë, font dhe pjerrësi. Madhësia ndryshon gjithë speedometrin.</p>';
         html += '<p class="as-note">Kliko edhe vetë numrin në lojë për km/h ↔ mph, kur pozicioni është i bllokuar.</p>';
       } else if (pane === 'layout') {
         html = heading('POZICIONI','Dy pozicione të pavarura.','Numrin e lëviz veç. Panelin e tërheq nga titulli, pa lëvizur numrin.');
@@ -283,20 +254,10 @@
         html += range('opacity','Dukshmëria e HUD-it',15,100,'%') + toggle('background','Sfond i errët');
         html += '<button class="as-secondary" data-action="reset-layout">Rikthe madhësinë dhe pozicionin e numrit</button>';
       } else if (pane === 'color') {
-        html = select('adaptiveColor','Ngjyra e numrit',[[true,'Sipas shpejtësisë'],[false,'Fikse']]);
-        html += color('color','Ngjyra fikse e numrit');
-        html += select('palette','Kalimi i ngjyrave',[['spectrum','Spektri 0–100'],['custom','3 ngjyra personale']]);
-        html += '<p class="as-note">Spektri matet gjithmonë në km/h: 0 bardhë → 5 cyan → 20 blu → 40 vjollcë → 60 rozë → 80 portokalli → 100+ kuqe. Kalimi është gradual, edhe kur shfaq mph.</p>';
-        html += '<div class="as-ramp">' + [[0,'#ffffff'],[5,settings.stop5],[20,settings.stop20],[40,settings.stop40],[60,settings.stop60],[80,settings.stop80],[100,settings.stop100]].map(function (c) {
-          return '<span style="--stop:' + c[1] + '"><i></i>' + c[0] + '</span>';
-        }).join('') + '</div>';
-        html += '<div class="as-stop-picker">' + [5,20,40,60,80,100].map(function (n) {
-          return '<button type="button" data-stop="stop' + n + '" aria-pressed="' + (selectedStop === 'stop'+n) + '">' + n + '</button>';
-        }).join('') + '</div>' + color(selectedStop,'Ngjyra në ' + selectedStop.slice(4) + ' km/h');
-        html += '<button class="as-secondary" data-action="reset-spectrum">Rikthe spektrin origjinal</button>';
-        html += '<h3 class="as-group-title">NGJYRA E NJËSISË</h3>' + toggle('unitFollowsColor','Njësia ndjek numrin') + color('unitColor','Ngjyra fikse e km/h / mph');
-        html += '<details><summary>Kalimi personal me 3 ngjyra</summary>' + range('midSpeed','Pragu i mesëm (km/h)',1,600,'') + color('midColor','Ngjyra e mesme') +
-          range('highSpeed','Pragu i lartë (km/h)',2,700,'') + color('highColor','Ngjyra e lartë') + '</details>';
+        html = heading('NGJYRAT','Pa ylber. Pa pink automatik.','Standardi është i bardhë në çdo shpejtësi. Numri dhe njësia marrin gjithmonë të njëjtën ngjyrë.');
+        html += color('color','Ngjyra e speedometrit të plotë');
+        html += select('adaptiveColor','Sjellja e ngjyrës',[[false,'Fikse (standard)'],[true,'Kalimi i lehtë']]);
+        html += '<p class="as-note">Opsioni i lehtë: bardhë deri 60 km/h → amber në 100 → e kuqe në 140+. Pa cyan, blu, vjollcë ose pink automatik. Pragjet mbeten në km/h edhe kur shfaq mph.</p>';
         html += color('outlineColor','Ngjyra e konturit') + range('outline','Trashësia e konturit',0,5,' px');
       } else if (pane === 'behavior') {
         html = select('source','Burimi',[['dynamic','Dinamik'],['air','Air'],['wheel','Gomat']]);
@@ -305,11 +266,11 @@
         html += '<div class="as-two-col">' + range('smoothing','Zbutja',0,500,' ms') + range('reactiveScale','Zmadhim sipas shpejtësisë',0,20,'%') +
           range('glow','Shkëlqimi Neon',0,40,' px') + range('shadow','Hija',0,100,'%') + '</div>';
         html += toggle('enabled','Shfaq speedometrin') + toggle('hideStopped','Fshehe kur ndalet') + toggle('showPeak','Shfaq maksimumin e sesionit');
-        html += '<button class="as-secondary" data-action="reset-peak">Pastro maksimumin</button>' + toggle('showGear','Shfaq marshin') + toggle('showRpm','Shiriti RPM');
-        html += range('rpmMax','Kufiri RPM (manual)',1000,20000,'') + toggle('warning','Paralajmërim shpejtësie') + range('warningSpeed','Kufiri i paralajmërimit (km/h)',1,700,'');
+        html += '<button class="as-secondary" data-action="reset-peak">Pastro maksimumin</button>';
+        html += toggle('warning','Paralajmërim shpejtësie') + range('warningSpeed','Kufiri i paralajmërimit (km/h)',1,700,'');
         if (options.demo) html += rangeDemo();
       } else {
-        html = heading('STILET','Ruaje stilin tënd.','Stilet ndryshojnë fontin, formën, ndriçimin dhe sjelljen — jo vetëm ngjyrën.');
+        html = heading('STILET','Ruaje stilin tënd.','Numri dhe njësia mbeten gjithmonë bashkë, me tipografi të pastër.');
         html += '<div class="as-presets">' + Object.keys(BUILTINS).map(function (name, i) {
           return '<button type="button" data-builtin="' + i + '">' + name + '<b>↗</b></button>';
         }).join('') + '</div><div class="as-custom-presets"></div>';
@@ -343,13 +304,9 @@
       setValue(key, el.type === 'checkbox' ? el.checked : LIMITS[key] ? Number(el.value) : el.value);
       var output = content.querySelector('[data-output="' + key + '"]');
       if (output) output.textContent = settings[key] + (el.dataset.suffix || '');
-      if (key === 'midSpeed' || key === 'highSpeed') {
-        var high = content.querySelector('[data-key="highSpeed"]');
-        if (high) { high.value = settings.highSpeed; content.querySelector('[data-output="highSpeed"]').textContent = settings.highSpeed; }
-      }
       if (el.classList.contains('as-hex')) {
         var chip = el.parentElement.querySelector('i'); if (chip) chip.style.background = settings[key];
-        content.querySelectorAll('[data-set="adaptiveColor"], [data-set="unitFollowsColor"]').forEach(function (button) {
+        content.querySelectorAll('[data-set="adaptiveColor"]').forEach(function (button) {
           button.setAttribute('aria-pressed',String(settings[button.dataset.set]) === button.dataset.value);
         });
       }
@@ -392,7 +349,6 @@
         if (!/^#[0-9a-f]{6}$/i.test(field.value)) { field.setAttribute('aria-invalid','true'); notify('Shkruaj ngjyrën si #00e5ff'); return; }
         setValue(target.dataset.applyColor,field.value); save(); render(); notify('Ngjyra u aplikua'); return;
       }
-      if (target.dataset.stop) { selectedStop = target.dataset.stop; render(); return; }
       if (target.matches('.as-collapse')) { settings.panelCollapsed = !settings.panelCollapsed; positionPanel(); save(); return; }
       if (target.matches('.as-settings-button')) { visible(true); return; }
       if (target.matches('.as-close, .as-done')) { visible(false); apply(); return; }
@@ -420,8 +376,7 @@
         settings.panelX = corner.x; settings.panelY = corner.y;
       }
       if (action === 'panel-left' || action === 'panel-right') { settings.panelX = action === 'panel-left' ? 0 : 100; settings.panelY = 0; }
-      if (action === 'reset-spectrum') { ['stop5','stop20','stop40','stop60','stop80','stop100'].forEach(function (k) { settings[k] = DEFAULTS[k]; }); settings.palette='spectrum'; settings.adaptiveColor=true; }
-      if (action === 'reset-layout') ['x', 'y', 'size', 'unitSize', 'unitGap', 'digitSpacing'].forEach(function (k) { settings[k] = DEFAULTS[k]; });
+      if (action === 'reset-layout') ['x','y','size','digitSpacing'].forEach(function (k) { settings[k] = DEFAULTS[k]; });
       if (action === 'reset-peak') { peakMs = 0; notify('Maksimumi u pastrua'); return; }
       if (action === 'save-preset') {
         var name = content.querySelector('.as-preset-name').value.trim();
@@ -515,7 +470,6 @@
       var dt = Math.min((now - previous) / 1000, 0.1); previous = now;
       if (options.demo) {
         data.wheel = demoMs; data.air = demoMs; data.ground = demoMs; data.wheelAt = now; data.airAt = now; data.groundAt = now;
-        data.rpm = demoMs > 0 ? 2400 + demoMs * 65 : 850; data.gear = demoMs > 0 ? String(Math.min(6, Math.max(1, Math.ceil(demoMs / 14)))) : 'N'; data.telemetryAt = now;
       }
       var sample = speedSample(data, settings.source, now);
       var ms = sample ? sample.speed : null, available = sample !== null;
@@ -531,9 +485,6 @@
       if (hud.style.getPropertyValue('--as-reactive') !== String(growth)) { hud.style.setProperty('--as-reactive',growth); fit(); }
       hud.classList.toggle('as-stopped', settings.hideStopped && available && Math.abs(ms) * 3.6 < 1 && panel.hidden);
       hud.classList.toggle('as-warning', settings.warning && available && convert(ms,'kmh') > settings.warningSpeed);
-      var hasTelemetry = now - data.telemetryAt < 1800;
-      gear.textContent = hasTelemetry ? data.gear : '—';
-      rpm.firstElementChild.style.width = (hasTelemetry ? clamp(data.rpm / settings.rpmMax * 100, 0, 100) : 0) + '%';
       meta.textContent = !available ? 'NË PRITJE TË SHPEJTËSISË' :
         sample.source === 'wheel-fallback' ? 'REZERVË: GOMAT · PA TË DHËNA REALE' :
         settings.showPeak ? 'MAKS. ' + Math.round(convert(peakMs, settings.units)) + ' ' + unit.textContent : '';
@@ -554,17 +505,11 @@
       var air = finite(electrics.airspeed) ? electrics.airspeed : electrics.airSpeed;
       if (finite(wheel)) { data.wheel = Math.abs(wheel); data.wheelAt = now; }
       if (finite(air)) { data.air = Math.abs(air); data.airAt = now; }
-      data.rpm = finite(electrics.rpm) ? Math.max(0, electrics.rpm) : 0;
-      var g = electrics.gear;
-      if (typeof g === 'string' && g.length <= 3) data.gear = g;
-      else if (finite(electrics.gearIndex)) data.gear = electrics.gearIndex < 0 ? 'R' : electrics.gearIndex === 0 ? 'N' : String(electrics.gearIndex);
-      else data.gear = '—';
-      data.telemetryAt = now;
     }
     function updateGround(payload) {
       if (!payload) return;
       if (payload.reset) {
-        data.wheel = null; data.air = null; data.wheelAt = -Infinity; data.airAt = -Infinity; data.telemetryAt = -Infinity;
+        data.wheel = null; data.air = null; data.wheelAt = -Infinity; data.airAt = -Infinity;
         displayed = 0; peakMs = 0;
       }
       if (payload.available && finite(payload.speed)) { data.ground = Math.max(0, payload.speed); data.groundAt = performance.now(); }
@@ -590,8 +535,8 @@
             document.head.appendChild(css);
           }
           // Reusing the UI layout must not keep a previous build's stylesheet alive.
-          if (css.getAttribute('href') !== '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.0') {
-            css.href = '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.0';
+          if (css.getAttribute('href') !== '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.1') {
+            css.href = '/ui/modules/apps/ApexSpeedometer/app.css?v=0.3.1';
           }
           var app = API.mount(element[0]);
           StreamsManager.add(['electrics']);
